@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi biblioteca</title>
+<!-- PWA: manifest, iconos y colores de la app instalada -->
+<meta name="description" content="Estantería personal de libros leídos.">
+<meta name="theme-color" content="#f5f3ef">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Biblioteca">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script>
+/* PWA: registra el service worker (solo funciona servido por http/https, no con file://) */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('Service worker no registrado:', err));
+  });
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Inter:wght@300;400;500&amp;display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   1. VARIABLES DE DISEÑO
+   ========================================================= */
+:root{
+  --bg:#f5f3ef;
+  --paper:#fbfaf8;
+  --ink:#2e2c29;
+  --muted:#8b877f;
+  --line:#e5e1da;
+  --shelf:#ece8e1;
+  --shelf-edge:#dcd7ce;
+  --shadow-s:0 1px 2px rgba(40,35,30,.06),0 2px 6px rgba(40,35,30,.05);
+  --shadow-m:0 12px 32px rgba(40,35,30,.10),0 3px 10px rgba(40,35,30,.06);
+  --shadow-l:0 40px 80px -20px rgba(40,35,30,.28),0 18px 36px -18px rgba(40,35,30,.22);
+  --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  --sans:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+  --ease:cubic-bezier(.22,.8,.24,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--sans);font-weight:300;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+
+/* =========================================================
+   2. CABECERA
+   ========================================================= */
+.top{max-width:1100px;margin:0 auto;padding:60px 32px 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.top h1{font-family:var(--serif);font-weight:500;font-size:46px;letter-spacing:.01em;line-height:1}
+.top p{color:var(--muted);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:12px}
+.btn{border:1px solid var(--line);background:var(--paper);padding:10px 20px;border-radius:999px;font-size:13px;letter-spacing:.03em;box-shadow:var(--shadow-s);transition:transform .25s var(--ease),box-shadow .25s var(--ease),background .25s}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-m)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.quiet{box-shadow:none;background:transparent}
+.btn.quiet:hover{background:var(--bg);box-shadow:none;transform:none}
+.btn.danger:hover{color:#a2554a;border-color:#e3c9c4}
+
+/* =========================================================
+   3. NIVEL 1 · ESTANTERÍA DE LOMOS
+   ========================================================= */
+main{max-width:1100px;margin:0 auto;padding:8px 32px 40px}
+.bookcase{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:36px 36px 14px;box-shadow:var(--shadow-s)}
+.shelf{position:relative;display:flex;align-items:flex-end;gap:5px;min-height:284px;padding:0 14px;margin-bottom:44px}
+.shelf::after{content:'';position:absolute;left:-14px;right:-14px;bottom:-14px;height:14px;background:linear-gradient(var(--shelf),var(--shelf-edge));border-radius:2px;box-shadow:0 8px 14px -8px rgba(40,35,30,.22)}
+.shelf .empty{align-self:center;margin:auto;color:var(--muted);font-family:var(--serif);font-style:italic;font-size:19px}
+
+.spine{position:relative;flex:none;border-radius:2px 2px 1px 1px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 0 12px;
+  box-shadow:inset 2px 0 0 rgba(255,255,255,.35),inset -4px 0 8px rgba(0,0,0,.06),0 1px 2px rgba(40,35,30,.10),0 3px 8px rgba(40,35,30,.06);
+  transition:transform .4s var(--ease),box-shadow .4s var(--ease)}
+.spine::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(90deg,rgba(255,255,255,.18),transparent 30%,transparent 75%,rgba(0,0,0,.05));pointer-events:none}
+.spine:hover,.spine:focus-visible{transform:translateY(-12px);box-shadow:inset 2px 0 0 rgba(255,255,255,.35),inset -4px 0 8px rgba(0,0,0,.06),0 16px 24px -8px rgba(40,35,30,.22);outline:none}
+.spine .band{width:62%;height:1px;background:currentColor;opacity:.25}
+.spine .t{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--serif);font-size:15px;font-weight:500;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin:10px 0;text-align:center}
+.spine .a{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.65;margin-top:8px}
+.spine .mark{position:absolute;top:-1px;right:20%;width:7px;height:24px;background:#c08a5b;clip-path:polygon(0 0,100% 0,100% 100%,50% 76%,0 100%)}
+.spine .seal-dot{width:9px;height:9px;border-radius:50%;margin-top:6px;background:radial-gradient(circle at 35% 30%,#f6ecd2,#c9ad6c);box-shadow:0 0 0 1px rgba(94,74,34,.3)}
+
+/* Sello de premio literario */
+.seal{position:absolute;z-index:3;top:20px;right:20px;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;text-align:center;padding:7px;
+  background:radial-gradient(circle at 35% 30%,#f7eed6,#d9c08a);color:#5e4a22;font-size:7px;letter-spacing:.14em;text-transform:uppercase;line-height:1.2;
+  box-shadow:0 3px 8px rgba(40,35,30,.25),inset 0 0 0 3px rgba(255,255,255,.35),inset 0 0 0 4px rgba(94,74,34,.28)}
+.seal b{display:block;margin-top:2px;font-family:var(--serif);font-size:11.5px;font-weight:600;letter-spacing:.01em;text-transform:none;line-height:1.05}
+.award{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:5px 11px;border-radius:999px;background:#f4ecda;color:#5e4a22;margin:0 6px 6px 0}
+.award::before{content:'✦';font-size:10px;opacity:.7}
+.award button{font-size:14px;line-height:1;color:#8a7448;margin-left:2px}
+.award button:hover{color:#5e4a22}
+.award-src{font-size:11.5px;color:var(--muted);margin-top:4px}
+.field[hidden]{display:none}
+
+/* Exportar / importar */
+.top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* El libro misterioso */
+.icon-btn{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;color:var(--muted)}
+.icon-btn svg{width:20px;height:20px;transition:transform .5s var(--ease)}
+.icon-btn:hover{color:var(--ink)}
+.icon-btn:hover svg{transform:rotate(-18deg)}
+.icon-btn.rolling svg{animation:roll .7s var(--ease) infinite}
+@keyframes roll{to{transform:rotate(360deg)}}
+.bookcase.shuffling .spine{opacity:.32;transition:opacity .35s var(--ease),transform .22s var(--ease),box-shadow .22s var(--ease)}
+.bookcase.shuffling .spine.cand{opacity:.7}
+.bookcase.shuffling .spine.lit{opacity:1;transform:translateY(-14px)}
+.bookcase.shuffling .spine.chosen{opacity:1;transform:translateY(-24px);box-shadow:0 0 0 1.5px var(--ink),0 18px 28px -8px rgba(40,35,30,.3)}
+.stage.mystery{transition-duration:.9s}
+.stage.mystery .book3d{transition-duration:1.5s}
+
+/* Pasaporte literario */
+.passport-sheet{width:min(720px,100%)}
+.pp-kicker{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.passport-sheet h2{margin-bottom:6px}
+.pp-sum{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--muted);margin-bottom:26px}
+.stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:26px 20px;padding:6px 4px 10px}
+.stamp{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:12px;
+  color:var(--sc);background:rgba(255,255,255,.35);mix-blend-mode:multiply;opacity:.9;transform:rotate(var(--rot));transition:transform .35s var(--ease),opacity .35s}
+.stamp::before{content:'';position:absolute;inset:6px;border:1px solid currentColor;border-radius:inherit;opacity:.45;pointer-events:none}
+.stamp.s0{border-radius:50%;border:2px solid currentColor}
+.stamp.s1{border-radius:3px;border:2px dashed currentColor}
+.stamp.s2{border-radius:16px;border:3px double currentColor}
+.stamp:hover,.stamp:focus-visible{transform:rotate(0deg) scale(1.06);opacity:1;outline:none}
+.st-code{font-family:var(--serif);font-weight:600;font-size:36px;line-height:1;letter-spacing:.05em}
+.st-name{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;text-align:center;line-height:1.3;max-width:100%;overflow-wrap:anywhere}
+.st-n{font-family:var(--serif);font-style:italic;font-size:15px;margin-top:5px}
+.st-read{font-size:9.5px;letter-spacing:.06em;opacity:.75}
+.pp-empty{grid-column:1/-1;text-align:center;font-family:var(--serif);font-style:italic;font-size:19px;color:var(--muted);padding:30px 10px}
+.pp-note{font-size:12.5px;color:var(--muted);margin-top:18px;line-height:1.55}
+.filter-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px;padding:8px 8px 8px 20px;border:1px solid var(--line);border-radius:999px;background:var(--paper);box-shadow:var(--shadow-s);font-size:13px;color:var(--muted)}
+.filter-bar[hidden]{display:none}
+.filter-bar b{font-family:var(--serif);font-style:italic;font-weight:500;font-size:17px;color:var(--ink)}
+
+/* Tarjeta literaria */
+#cardModal{z-index:46}
+.card-sheet{width:min(520px,100%)}
+.card-preview{position:relative;display:grid;place-items:center;min-height:320px;background:var(--bg);border-radius:8px;padding:16px}
+.card-preview img{display:block;max-width:100%;max-height:min(62vh,640px);border-radius:4px;box-shadow:var(--shadow-m)}
+.card-preview img:not([src]){display:none}
+.card-wait{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--muted)}
+.card-note{font-size:12px;color:var(--muted);margin-top:12px;min-height:1em}
+.imp-sum{font-size:14.5px;line-height:1.65;color:#4a4742;margin-bottom:22px}
+.imp-sum b{font-weight:500;color:var(--ink)}
+.imp-opt{display:flex;gap:16px;align-items:flex-start;padding:16px 0;border-top:1px solid var(--line)}
+.imp-opt .btn{flex:none;min-width:116px}
+.imp-opt p{font-size:13px;line-height:1.55;color:var(--muted)}
+
+/* ISBN y escáner */
+.isbn-row{display:flex;gap:8px}
+.isbn-row input{flex:1;min-width:0}
+.scan-btn{flex:none;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;font-size:12.5px}
+.scan-btn svg{width:17px;height:17px}
+#scanModal{z-index:45}
+.scan-sheet{width:min(480px,100%)}
+.scan-view{position:relative;aspect-ratio:4/3;background:#1d1c1a;border-radius:8px;overflow:hidden}
+#scanVideo{position:absolute;inset:0}
+#scanVideo video{width:100%!important;height:100%!important;object-fit:cover;display:block}
+.scan-guide{position:absolute;left:10%;right:10%;top:30%;bottom:30%;pointer-events:none;border-radius:6px;box-shadow:0 0 0 999px rgba(20,19,18,.42);
+  --c:#f8f6f2;background:
+    linear-gradient(var(--c),var(--c)) top left/26px 2px no-repeat,linear-gradient(var(--c),var(--c)) top left/2px 26px no-repeat,
+    linear-gradient(var(--c),var(--c)) top right/26px 2px no-repeat,linear-gradient(var(--c),var(--c)) top right/2px 26px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom left/26px 2px no-repeat,linear-gradient(var(--c),var(--c)) bottom left/2px 26px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom right/26px 2px no-repeat,linear-gradient(var(--c),var(--c)) bottom right/2px 26px no-repeat}
+.scan-line{position:absolute;left:5%;right:5%;height:2px;background:#e0866f;box-shadow:0 0 10px #e0866f;animation:scanline 1.6s ease-in-out infinite alternate}
+@keyframes scanline{from{top:10%}to{top:90%}}
+.scan-view.off .scan-guide{display:none}
+.scan-msg{position:absolute;inset:0;display:grid;place-items:center;padding:28px;text-align:center;color:#d9d5ce;font-size:13.5px;line-height:1.6}
+.scan-status{font-size:13px;color:var(--muted);margin:14px 0 2px;min-height:1.3em}
+.scan-alt{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.scan-alt input{flex:1;min-width:150px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:9px 12px;font-size:14px;outline:none}
+.scan-alt input:focus{border-color:#c4beb4;box-shadow:0 0 0 3px rgba(196,190,180,.25)}
+
+/* Limpiar formato de texto */
+.lbl-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.tidy{font-size:11.5px;color:var(--muted);text-decoration:underline;text-underline-offset:3px;text-decoration-color:#d6d0c6}
+.tidy:hover{color:var(--ink)}
+
+/* Pequeño jarrón decorativo */
+.deco{margin-left:auto;position:relative;width:58px;height:120px;flex:none;align-self:flex-end}
+.deco .vase{position:absolute;bottom:0;left:12px;width:34px;height:52px;border-radius:14px 14px 10px 10px;background:linear-gradient(135deg,#f3f1ec,#dcd8d0);box-shadow:inset -3px -4px 8px rgba(0,0,0,.05),var(--shadow-s)}
+.deco .stem{position:absolute;bottom:46px;left:28px;width:1.4px;height:70px;background:#a9ad9f;transform-origin:bottom;border-radius:2px}
+.deco .stem:nth-child(2){transform:rotate(-14deg);height:62px}
+.deco .stem:nth-child(3){transform:rotate(12deg);height:56px}
+.deco .stem::after{content:'';position:absolute;top:-2px;left:-4px;width:9px;height:14px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#c6cabc}
+
+footer{max-width:1100px;margin:0 auto;padding:0 32px 48px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+footer button{text-decoration:underline;text-underline-offset:3px;color:var(--muted)}
+footer button:hover{color:var(--ink)}
+
+/* =========================================================
+   4. NIVEL 2 · DESPLIEGUE DE PORTADA (libro 3D)
+   ========================================================= */
+.stage{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;
+  background:rgba(245,243,239,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;transition:opacity .45s var(--ease);perspective:1800px}
+.stage.show{opacity:1;pointer-events:auto}
+.stage .close{position:absolute;top:24px;right:28px;width:40px;height:40px;border-radius:50%;font-size:22px;color:var(--muted);transition:.25s}
+.stage .close:hover{background:var(--paper);color:var(--ink);box-shadow:var(--shadow-s)}
+
+.book3d{--w:280px;--h:410px;--d:40px;position:relative;width:var(--w);height:var(--h);transform-style:preserve-3d;
+  transform:rotateY(90deg) scale(.72);transition:transform 1.05s var(--ease);cursor:pointer;outline:none}
+.stage.open .book3d{transform:rotateY(-16deg) rotateX(3deg) scale(1)}
+.stage.open .book3d:hover,.stage.open .book3d:focus-visible{transform:rotateY(-7deg) rotateX(2deg) scale(1.02)}
+.face{position:absolute;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.front{inset:0;transform:translateZ(calc(var(--d) / 2));border-radius:2px 6px 6px 2px;overflow:hidden;box-shadow:var(--shadow-l)}
+.back{inset:0;transform:rotateY(180deg) translateZ(calc(var(--d) / 2));border-radius:6px 2px 2px 6px}
+.side-l{top:0;height:100%;width:var(--d);left:calc(50% - var(--d) / 2);transform:rotateY(-90deg) translateZ(calc(var(--w) / 2));display:flex;align-items:center;justify-content:center;border-radius:2px}
+.side-l span{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--serif);font-size:15px;font-weight:500;letter-spacing:.05em;white-space:nowrap;overflow:hidden;max-height:86%}
+.side-r{top:4px;height:calc(100% - 8px);width:var(--d);left:calc(50% - var(--d) / 2);transform:rotateY(90deg) translateZ(calc(var(--w) / 2 - 3px));
+  background:repeating-linear-gradient(90deg,#f7f5f0 0 2px,#e8e4dc 2px 3px)}
+.side-t,.side-b{left:4px;width:calc(100% - 8px);height:var(--d);top:calc(50% - var(--d) / 2);background:repeating-linear-gradient(0deg,#f7f5f0 0 2px,#e8e4dc 2px 3px)}
+.side-t{transform:rotateX(90deg) translateZ(calc(var(--h) / 2 - 3px))}
+.side-b{transform:rotateX(-90deg) translateZ(calc(var(--h) / 2 - 3px))}
+
+/* Diseño de portada generada */
+.cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;padding:44px 30px 36px 38px;background-size:cover;background-position:center}
+.cover::before{content:'';position:absolute;top:0;bottom:0;left:0;width:18px;background:linear-gradient(90deg,rgba(0,0,0,.10),rgba(255,255,255,.18) 40%,rgba(0,0,0,.06) 55%,transparent);pointer-events:none}
+.cover::after{content:'';position:absolute;inset:14px 14px 14px 24px;border:1px solid currentColor;opacity:.22;pointer-events:none}
+.cover .g{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.7}
+.cover .ct{font-family:var(--serif);font-weight:500;font-size:34px;line-height:1.08;letter-spacing:.01em}
+.cover .rule{width:36px;height:1px;background:currentColor;opacity:.4;margin:18px auto}
+.cover .ca{font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.8}
+.cover.img::after,.cover.img .g,.cover.img .mid,.cover.img .ca{display:none}
+.cover::before{z-index:2}
+.cover-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+
+.hint{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);opacity:0;transform:translateY(6px);transition:opacity .5s .6s var(--ease),transform .5s .6s var(--ease)}
+.stage.open .hint{opacity:1;transform:none}
+
+/* =========================================================
+   5. NIVEL 3 · FICHA DE LECTURA (panel lateral)
+   ========================================================= */
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(46,44,41,.10);opacity:0;pointer-events:none;transition:opacity .45s var(--ease)}
+.scrim.show{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;z-index:31;height:100%;width:min(440px,100%);background:var(--paper);border-left:1px solid var(--line);
+  box-shadow:-24px 0 60px rgba(40,35,30,.08);transform:translateX(102%);transition:transform .6s var(--ease);overflow-y:auto;padding:40px 44px 48px}
+.panel.show{transform:none}
+.p-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px}
+.tag{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:6px 12px;border-radius:999px}
+.p-close{width:36px;height:36px;border-radius:50%;font-size:20px;color:var(--muted);transition:.25s}
+.p-close:hover{background:var(--bg);color:var(--ink)}
+.panel h2{font-family:var(--serif);font-weight:500;font-size:36px;line-height:1.1}
+.panel .author{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--muted);margin-top:8px}
+.divider{height:1px;background:var(--line);margin:30px 0}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:16px 24px;align-items:center}
+.facts dt{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.facts dd{font-size:14.5px}
+.dots{display:inline-flex;gap:7px;vertical-align:middle}
+.dot{width:9px;height:9px;border-radius:50%;border:1px solid #b9b4ab;background:transparent}
+.dot.on{background:var(--ink);border-color:var(--ink)}
+.p-section{margin-top:32px}
+.p-section h3{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:400;margin-bottom:12px}
+.quote{font-family:var(--serif);font-style:italic;font-size:21px;line-height:1.4;padding-left:18px;border-left:1px solid var(--ink)}
+.notes{font-size:14.5px;line-height:1.75;white-space:pre-wrap;color:#4a4742}
+.p-actions{display:flex;gap:10px;margin-top:42px}
+
+/* =========================================================
+   6. FORMULARIO (añadir / editar)
+   ========================================================= */
+.modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:20px;background:rgba(46,44,41,.16);opacity:0;pointer-events:none;transition:opacity .35s var(--ease)}
+.modal.show{opacity:1;pointer-events:auto}
+.sheet{width:min(560px,100%);max-height:calc(100vh - 40px);overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-l);padding:36px 38px;transform:translateY(12px);transition:transform .45s var(--ease)}
+.modal.show .sheet{transform:none}
+.sheet h2{font-family:var(--serif);font-weight:500;font-size:30px;margin-bottom:24px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field.full{grid-column:1/-1}
+.field label,.field .lbl{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.field input,.field textarea{border:1px solid var(--line);background:#fff;border-radius:6px;padding:10px 12px;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.field input:focus,.field textarea:focus{border-color:#c4beb4;box-shadow:0 0 0 3px rgba(196,190,180,.25)}
+.field textarea{resize:vertical;min-height:84px;line-height:1.55}
+.status-pick{display:flex;gap:8px;flex-wrap:wrap}
+.status-pick button{border:1px solid var(--line);background:#fff;padding:8px 16px;border-radius:999px;font-size:13px;letter-spacing:.02em;transition:background .2s,color .2s,border-color .2s}
+.status-pick button:hover{border-color:#c4beb4}
+.status-pick button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.field .opt{text-transform:none;letter-spacing:0;opacity:.8}
+.rate-pick{display:flex;gap:8px;padding:8px 0}
+.rate-pick button{width:18px;height:18px;border-radius:50%;border:1px solid #b9b4ab;transition:.2s}
+.rate-pick button.on{background:var(--ink);border-color:var(--ink)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.swatches button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.08);transition:transform .2s}
+.swatches button.on{outline:1.5px solid var(--ink);outline-offset:2px}
+.swatches input[type=color]{width:30px;height:30px;padding:0;border:0;background:none;cursor:pointer}
+.sheet .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:28px}
+.err{color:#a2554a;font-size:12.5px;margin-top:14px;min-height:1em}
+
+/* =========================================================
+   7. ADAPTACIÓN A MÓVIL
+   ========================================================= */
+@media (max-width:640px){
+  .top{padding:40px 16px 20px}
+  .top h1{font-size:36px}
+  main{padding:8px 16px 32px}
+  .bookcase{padding:28px 18px 10px}
+  footer{padding:0 16px 40px}
+  .book3d{--w:230px;--h:336px}
+  .cover .ct{font-size:28px}
+  .panel{padding:32px 26px 40px}
+  .grid{grid-template-columns:1fr}
+  .sheet{padding:28px 22px}
+}
+/* Selector de portada en el formulario */
+.cover-row{display:flex;gap:16px;align-items:flex-start}
+.cover-thumb{flex:none;width:58px;height:86px;border-radius:3px;border:1.5px dashed #d6d0c6;background:#f3f1ec center/cover no-repeat;box-shadow:none}
+.cover-thumb.has{border:0;box-shadow:var(--shadow-s)}
+.cover-tools{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+.cover-btns{display:flex;gap:8px;flex-wrap:wrap}
+.cover-btns .btn{padding:8px 14px;font-size:12.5px}
+.cover-status{font-size:12.5px;color:var(--muted);min-height:1em;margin-top:4px}
+.cover-results{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:14px 12px}
+.cover-results .ed{display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0}
+.ed-img{display:block;aspect-ratio:2/3;border-radius:3px;background:#efece6;box-shadow:var(--shadow-s);overflow:hidden;outline:2px solid transparent;outline-offset:2px;transition:transform .2s var(--ease),outline-color .2s}
+.ed-img img{width:100%;height:100%;object-fit:cover;display:block}
+.ed:hover .ed-img,.ed:focus-visible .ed-img{transform:translateY(-3px)}
+.ed:focus-visible{outline:none}
+.ed.on .ed-img{outline-color:var(--ink)}
+.ed-cap{font-size:10.5px;line-height:1.3;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ed-mine{align-self:flex-start;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#5e4a22;background:#f4ecda;padding:2px 7px;border-radius:999px}
+.swatches .from-cover{width:auto;height:26px;border-radius:999px;padding:0 12px;font-size:11.5px;border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+.swatches .from-cover:hover{color:var(--ink)}
+
+/* =========================================================
+   8. BOTÓN «+», HUECO EN LA BALDA Y AVISOS
+   ========================================================= */
+.fab{position:fixed;right:32px;bottom:32px;z-index:15;width:60px;height:60px;border-radius:50%;background:var(--ink);color:var(--paper);
+  font-family:var(--serif);font-size:36px;line-height:1;display:grid;place-items:center;padding-bottom:4px;
+  box-shadow:0 14px 30px -8px rgba(40,35,30,.45),0 3px 8px rgba(40,35,30,.15);transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.fab:hover{transform:translateY(-2px) rotate(90deg);box-shadow:0 18px 36px -8px rgba(40,35,30,.5),0 4px 10px rgba(40,35,30,.15)}
+.fab:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.spine-add{flex:none;width:40px;height:210px;border:1.5px dashed #cfc9bf;border-radius:3px;display:grid;place-items:center;color:#b3ada3;
+  font-family:var(--serif);font-size:28px;transition:all .3s var(--ease);margin-left:4px}
+.spine-add:hover,.spine-add:focus-visible{border-color:var(--ink);color:var(--ink);background:rgba(255,255,255,.6);transform:translateY(-6px);outline:none}
+.save-btn{position:relative}
+.save-btn.dirty::after{content:'';position:absolute;top:6px;right:8px;width:7px;height:7px;border-radius:50%;background:#c08a5b}
+.toast{position:fixed;left:50%;bottom:36px;z-index:50;transform:translate(-50%,16px);opacity:0;pointer-events:none;background:var(--ink);color:var(--paper);
+  padding:11px 20px;border-radius:999px;font-size:13px;letter-spacing:.02em;box-shadow:var(--shadow-m);transition:opacity .35s var(--ease),transform .35s var(--ease);max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (max-width:640px){.fab{right:18px;bottom:18px;width:54px;height:54px}}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>Mi biblioteca</h1>
+    <p id="count">—</p>
+  </div>
+  <div class="top-actions">
+    <button class="btn quiet icon-btn" id="passportBtn" title="Pasaporte literario: tus lecturas por países" aria-label="Pasaporte literario">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="10.5" r="3.6"/><path d="M8.4 10.5h7.2M12 6.9c1.3 1.4 1.3 5.8 0 7.2M12 6.9c-1.3 1.4-1.3 5.8 0 7.2M9.5 17.5h5"/></svg>
+    </button>
+    <button class="btn quiet icon-btn" id="mysteryBtn" title="El libro misterioso: el azar elige uno de tus pendientes" aria-label="El libro misterioso: elegir al azar un libro pendiente">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><g fill="currentColor" stroke="none"><circle cx="8.3" cy="8.3" r="1.25"/><circle cx="15.7" cy="8.3" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="8.3" cy="15.7" r="1.25"/><circle cx="15.7" cy="15.7" r="1.25"/></g></svg>
+    </button>
+    <button class="btn quiet" id="exportBtn" title="Descarga un archivo .json con todos tus libros">Exportar biblioteca</button>
+    <button class="btn quiet" id="importBtn" title="Carga un archivo .json exportado antes">Importar biblioteca</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden="">
+    <button class="btn save-btn" id="saveFileBtn" title="Escribe tus libros dentro de este archivo HTML">Guardar en archivo</button>
+  </div>
+</header>
+
+<main>
+  <div class="filter-bar" id="filterBar" hidden="">
+    <span id="filterText"></span>
+    <button type="button" class="btn quiet" id="filterClear">Ver toda la estantería</button>
+  </div>
+  <section class="bookcase" id="bookcase" aria-label="Estantería"></section>
+</main>
+
+<footer>
+  <span>Pulsa un lomo para sacar el libro · pulsa <b style="font-weight:500">+</b> para añadir uno nuevo.</span>
+  <span><button id="bulkCoversBtn">Buscar portadas que faltan</button> &nbsp;·&nbsp; <button id="resetBtn">Restablecer libros de ejemplo</button></span>
+</footer>
+
+<button class="fab" id="addBtn" aria-label="Añadir libro" title="Añadir libro">+</button>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Nivel 2: escenario del libro -->
+<div class="stage" id="stage" aria-hidden="true">
+  <button class="close" id="stageClose" aria-label="Cerrar">×</button>
+  <div class="book3d" id="book3d" tabindex="0" role="button" aria-label="Abrir ficha de lectura"></div>
+  <div class="hint">Pulsa la portada para ver la ficha</div>
+</div>
+
+<!-- Nivel 3: ficha de lectura -->
+<div class="scrim" id="scrim"></div>
+<aside class="panel" id="panel" aria-hidden="true"></aside>
+
+<!-- Importar: confirmación -->
+<div class="modal" id="importModal" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <h2 id="importTitle">Importar biblioteca</h2>
+    <p class="imp-sum" id="importSum"></p>
+    <div class="imp-opt">
+      <button type="button" class="btn primary" id="impMerge">Fusionar</button>
+      <p>Añade los libros nuevos. Los que ya tienes se conservan tal cual; solo se completan los datos que les falten.</p>
+    </div>
+    <div class="imp-opt">
+      <button type="button" class="btn danger" id="impReplace">Reemplazar</button>
+      <p>Sustituye toda tu biblioteca por la del archivo. Antes se descarga automáticamente una copia de la actual.</p>
+    </div>
+    <div class="actions"><button type="button" class="btn quiet" id="impCancel">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- Formulario -->
+<div class="modal" id="modal" aria-hidden="true">
+  <form class="sheet" id="form" novalidate="">
+    <h2 id="formTitle">Nuevo libro</h2>
+    <div class="grid">
+      <div class="field full">
+        <label for="f-isbn">ISBN <span class="opt">· opcional, rellena título y autor/a</span></label>
+        <div class="isbn-row">
+          <input id="f-isbn" inputmode="numeric" autocomplete="off" placeholder="978…">
+          <button type="button" class="btn scan-btn" id="scanBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10 8v8M13.5 8v8M17 8v8"/></svg>
+            Escanear ISBN
+          </button>
+        </div>
+      </div>
+      <div class="field full"><label for="f-title">Título *</label><input id="f-title" required=""></div>
+      <div class="field full"><label for="f-author">Autor/a *</label><input id="f-author" required=""></div>
+      <div class="field full">
+        <label for="f-country">País del autor/a <span class="opt">· opcional, se detecta solo</span></label>
+        <input id="f-country" list="countryList" autocomplete="off" placeholder="España, Colombia, Japón…">
+        <datalist id="countryList"></datalist>
+      </div>
+      <div class="field full">
+        <span class="lbl" id="statusLbl">Estado <span class="opt">· opcional, sin marcar = en tu biblioteca</span></span>
+        <div class="status-pick" id="statusPick" role="radiogroup" aria-labelledby="statusLbl">
+          <button type="button" role="radio" data-s="leido">Leído</button>
+          <button type="button" role="radio" data-s="leyendo">Leyendo</button>
+          <button type="button" role="radio" data-s="pendiente">Pendiente</button>
+        </div>
+      </div>
+      <div class="field"><label for="f-date">Fecha de lectura</label><input type="date" id="f-date"></div>
+      <div class="field"><label for="f-genre">Género</label><input id="f-genre" placeholder="Ensayo, novela…"></div>
+      <div class="field"><span class="lbl">Valoración</span><div class="rate-pick" id="ratePick"></div></div>
+      <div class="field"><label for="f-pages">Páginas</label><input type="number" id="f-pages" min="1" placeholder="Opcional"></div>
+      <div class="field full"><span class="lbl">Color del lomo</span><div class="swatches" id="swatches"></div></div>
+      <div class="field full">
+        <span class="lbl">Portada</span>
+        <div class="cover-row">
+          <div class="cover-thumb" id="coverThumb" aria-hidden="true"></div>
+          <div class="cover-tools">
+            <div class="cover-btns">
+              <button type="button" class="btn" id="searchCoverBtn">Buscar ediciones</button>
+              <button type="button" class="btn quiet" id="uploadCoverBtn">Subir imagen</button>
+              <button type="button" class="btn quiet" id="clearCoverBtn">Quitar</button>
+              <input type="file" id="coverFile" accept="image/*" hidden="">
+            </div>
+            <input id="f-cover" placeholder="…o pega aquí la URL de una imagen">
+          </div>
+        </div>
+        <p class="cover-status" id="coverStatus"></p>
+        <div class="cover-results" id="coverResults"></div>
+      </div>
+      <div class="field full" id="awardField" hidden>
+        <span class="lbl">Premios <span class="opt">· detectados automáticamente</span></span>
+        <div id="awardList"></div>
+      </div>
+      <div class="field full">
+        <div class="lbl-row"><label for="f-quote">Frase favorita</label><button type="button" class="tidy" data-for="f-quote" title="Quita espacios dobles, pone mayúsculas y comillas «»">Limpiar formato</button></div>
+        <textarea id="f-quote" rows="2" spellcheck="true" lang="es"></textarea>
+      </div>
+      <div class="field full">
+        <div class="lbl-row"><label for="f-notes">Notas personales</label><button type="button" class="tidy" data-for="f-notes" title="Quita espacios dobles, pone mayúsculas y comillas «»">Limpiar formato</button></div>
+        <textarea id="f-notes" rows="4" spellcheck="true" lang="es"></textarea>
+      </div>
+    </div>
+    <p class="err" id="err"></p>
+    <div class="actions">
+      <button type="button" class="btn quiet" id="cancelBtn">Cancelar</button>
+      <button type="submit" class="btn primary">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<!-- Pasaporte literario -->
+<div class="modal" id="passportModal" aria-hidden="true">
+  <div class="sheet passport-sheet" role="dialog" aria-modal="true" aria-labelledby="passportTitle">
+    <p class="pp-kicker">Mi biblioteca</p>
+    <h2 id="passportTitle">Pasaporte literario</h2>
+    <p class="pp-sum" id="passportSum"></p>
+    <div class="stamps" id="stamps"></div>
+    <p class="pp-note" id="passportNote"></p>
+    <div class="actions"><button type="button" class="btn quiet" id="passportClose">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Tarjeta literaria -->
+<div class="modal" id="cardModal" aria-hidden="true">
+  <div class="sheet card-sheet" role="dialog" aria-modal="true" aria-labelledby="cardTitle">
+    <h2 id="cardTitle">Tarjeta literaria</h2>
+    <div class="card-preview"><img id="cardImg" alt="Tarjeta del libro"><p class="card-wait" id="cardWait">Componiendo tu tarjeta…</p></div>
+    <p class="card-note" id="cardNote"></p>
+    <div class="actions">
+      <button type="button" class="btn quiet" id="cardClose">Cerrar</button>
+      <button type="button" class="btn" id="cardShare" hidden="">Compartir</button>
+      <button type="button" class="btn primary" id="cardDownload" disabled="">Descargar PNG</button>
+    </div>
+  </div>
+</div>
+
+<!-- Escáner de ISBN -->
+<div class="modal" id="scanModal" aria-hidden="true">
+  <div class="sheet scan-sheet" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+    <h2 id="scanTitle">Escanear ISBN</h2>
+    <div class="scan-view" id="scanView">
+      <div id="scanVideo"></div>
+      <div class="scan-guide" aria-hidden="true"><span class="scan-line"></span></div>
+    </div>
+    <p class="scan-status" id="scanStatus" role="status" aria-live="polite"></p>
+    <div class="scan-alt">
+      <input id="scanManual" inputmode="numeric" autocomplete="off" placeholder="…o escribe el ISBN" aria-label="ISBN">
+      <button type="button" class="btn" id="scanManualBtn">Buscar</button>
+      <button type="button" class="btn quiet" id="scanPhotoBtn">Desde una foto</button>
+      <input type="file" id="scanPhotoFile" accept="image/*" hidden="">
+    </div>
+    <div id="scanFileBox" hidden=""></div>
+    <div class="actions"><button type="button" class="btn quiet" id="scanCancel">Cancelar</button></div>
+  </div>
+</div>
+
+<script>
+/* Copia del archivo tal como se abrió (sirve para «Guardar en archivo») */
+const PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+/* =========================================================
+   DATOS · Este listado se reescribe automáticamente al pulsar
+   «Guardar en archivo». También puedes editarlo a mano: copia un
+   bloque y cambia sus valores (no borres los marcadores LIBROS_).
+   ========================================================= */
+const DEFAULT_BOOKS = /*LIBROS_INICIO*/[
+  {
+    "id": "demo1",
+    "title": "Don Quijote de la Mancha",
+    "author": "Miguel de Cervantes",
+    "isbn": "",
+    "country": "España",
+    "countryCode": "ES",
+    "countryChecked": true,
+    "date": "",
+    "status": "",
+    "rating": 0,
+    "genre": "Novela",
+    "pages": null,
+    "color": "#e6ddd0",
+    "cover": "",
+    "quote": "",
+    "notes": "Libro de ejemplo. Pulsa «+» para añadir los tuyos o «Importar biblioteca» para cargar una copia exportada.",
+    "awards": [],
+    "awardsChecked": false
+  }
+]/*LIBROS_FIN*/;
+
+const STORAGE_KEY = 'mi-biblioteca-v1';
+const STATUS = { leido:'Leído', leyendo:'Leyendo', pendiente:'Pendiente' };   // '' = en tu biblioteca
+const PALETTE = ['#ece8e1','#e6ddd0','#cfd5c9','#bec7d0','#d0c9d7','#e3cfc6','#b7b0a6','#8e8a84','#5f5c57'];
+
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hash(str){ let h = 0; for (const c of String(str)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+function ink(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return '#2e2c29';
+  const n = parseInt(m[1], 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.58 ? '#2e2c29' : '#f8f6f2';
+}
+function fmtDate(d){
+  if (!d) return '—';
+  const x = new Date(d + 'T00:00:00');
+  return isNaN(x) ? d : x.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+}
+function initials(name){ return String(name).split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0,3).toUpperCase(); }
+function dims(b){
+  const h0 = hash(b.title);
+  const w = b.pages ? Math.round(Math.min(58, Math.max(28, b.pages / 11))) : 30 + h0 % 20;
+  const h = 222 + h0 % 40;
+  const d = b.pages ? Math.round(Math.min(54, Math.max(24, b.pages / 13))) : 36;
+  return { w, h, d };
+}
+function dotsHTML(n){ return '<span class="dots" aria-label="' + n + ' de 5">' + [1,2,3,4,5].map(i => '<span class="dot' + (i <= n ? ' on' : '') + '"></span>').join('') + '</span>'; }
+
+/* ---------- Persistencia (localStorage, opcional) ---------- */
+/* Libros anteriores al campo «status»: los que tienen fecha se registraron como leídos */
+function withStatus(list){ list.forEach(b => { if (!('status' in b)) b.status = b.date ? 'leido' : ''; }); return list; }
+function load(){
+  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw){ const p = JSON.parse(raw); if (Array.isArray(p)) return withStatus(p); } } catch(e){}
+  return withStatus(clone(DEFAULT_BOOKS));
+}
+let storageOK = true;
+function save(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(books)); storageOK = true; }
+  catch(e){ storageOK = false; }
+  setDirty(true);
+}
+
+/* ---------- Avisos ---------- */
+let toastT;
+function toast(msg, ms = 2600){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* ---------- Cambios pendientes de escribir en el archivo ---------- */
+const DIRTY_KEY = STORAGE_KEY + '-pendiente';
+let dirty = false;
+function setDirty(v){
+  dirty = v;
+  try { v ? localStorage.setItem(DIRTY_KEY, '1') : localStorage.removeItem(DIRTY_KEY); } catch(e){}
+  const btn = document.getElementById('saveFileBtn');
+  if (btn){ btn.classList.toggle('dirty', v); btn.title = v ? 'Hay cambios sin escribir en el archivo HTML' : 'Escribe tus libros dentro de este archivo HTML'; }
+}
+
+/* ---------- Guardar en archivo: reescribe el listado dentro del propio HTML ---------- */
+let fileHandle = null;
+function buildHTML(){
+  const S = '/*LIBROS_' + 'INICIO*/', E = '/*LIBROS_' + 'FIN*/';
+  const i = PRISTINE.indexOf(S), j = PRISTINE.indexOf(E);
+  const json = JSON.stringify(books, null, 2).replace(/</g, '\\u003c');
+  return PRISTINE.slice(0, i + S.length) + json + PRISTINE.slice(j);
+}
+async function saveToFile(){
+  const html = buildHTML();
+  if (window.showSaveFilePicker){               // Chrome, Edge, Opera: sobrescribe el archivo elegido
+    try {
+      if (!fileHandle) fileHandle = await window.showSaveFilePicker({
+        suggestedName: 'mi-biblioteca.html',
+        types: [{ description: 'Página HTML', accept: { 'text/html': ['.html'] } }]
+      });
+      const w = await fileHandle.createWritable(); await w.write(html); await w.close();
+      setDirty(false); toast('Biblioteca guardada en el archivo ✓'); return;
+    } catch(e){ if (e.name === 'AbortError') return; fileHandle = null; }
+  }
+  const a = document.createElement('a');          // Safari, Firefox: descarga una copia actualizada
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = 'mi-biblioteca.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  setDirty(false); toast('Copia actualizada descargada: sustituye con ella tu archivo anterior', 4200);
+}
+
+/* =========================================================
+   EXPORTAR / IMPORTAR (.json)
+   ========================================================= */
+const normTxt = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const bookKey = b => normTxt(b.title) + '|' + normTxt(b.author);
+/* Mismo libro: mismo título y autor/a, o mismo id y mismo autor/a (por si se corrigió el título) */
+const sameBookAs = (x, b) => bookKey(x) === bookKey(b) || (!!b.id && x.id === b.id && normTxt(x.author) === normTxt(b.author));
+
+/* Deja cada libro solo con campos conocidos y valores válidos (el archivo puede venir de fuera) */
+function cleanBook(x){
+  if (!x || typeof x !== 'object') return null;
+  const str = v => typeof v === 'string' ? v.trim() : '';
+  const title = str(x.title), author = str(x.author);
+  if (!title || !author) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(x.date) ? x.date : '';
+  const pages = parseInt(x.pages, 10);
+  return {
+    id: str(x.id),
+    title, author,
+    isbn: toISBN13(x.isbn),
+    date,
+    status: STATUS[x.status] ? x.status : (x.status === undefined && date ? 'leido' : ''),
+    rating: Math.max(0, Math.min(5, parseInt(x.rating, 10) || 0)),
+    genre: str(x.genre),
+    pages: pages > 0 ? pages : null,
+    color: /^#[0-9a-f]{6}$/i.test(x.color) ? x.color : PALETTE[0],
+    cover: /^(https?:\/\/|data:image\/)[^\s"'()<>\\]+$/.test(str(x.cover)) ? str(x.cover) : '',
+    quote: str(x.quote),
+    notes: str(x.notes),
+    awards: Array.isArray(x.awards) ? x.awards.filter(a => typeof a === 'string' && a.trim()).map(a => a.trim()) : [],
+    awardsChecked: x.awardsChecked === true,
+    country: str(x.country).slice(0, 60),
+    countryCode: /^[A-Z]{2}$/.test(str(x.countryCode)) ? str(x.countryCode) : '',
+    countryChecked: x.countryChecked === true
+  };
+}
+
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+function exportLibrary(suffix = ''){
+  const data = { app: 'mi-biblioteca', formato: 1, exportado: new Date().toISOString(), total: books.length, libros: books.map(cleanBook).filter(Boolean) };
+  download(`mi-biblioteca_${new Date().toISOString().slice(0,10)}${suffix}.json`, JSON.stringify(data, null, 2), 'application/json');
+}
+
+/* Fusión segura: lo que ya tienes manda; del archivo solo se toma lo que te falta */
+function mergeBook(local, inc){
+  const out = { ...local };
+  ['isbn', 'date', 'genre', 'pages', 'cover', 'quote'].forEach(k => { if (!out[k] && inc[k]) out[k] = inc[k]; });
+  if (!out.country && inc.country){ out.country = inc.country; out.countryCode = inc.countryCode; out.countryChecked = true; }
+  if (inc.notes && !(out.notes || '').includes(inc.notes)) out.notes = out.notes ? out.notes + '\n\n' + inc.notes : inc.notes;
+  if (!out.rating && inc.rating) out.rating = inc.rating;
+  if (!out.status && inc.status) out.status = inc.status;
+  out.awards = mergeAwards(out.awards, inc.awards);
+  out.awardsChecked = !!(out.awardsChecked || inc.awardsChecked);
+  return out;
+}
+
+let pendingImport = null;
+async function readImport(file){
+  let parsed;
+  try { parsed = JSON.parse(await file.text()); }
+  catch(e){ toast('Ese archivo no es un .json válido', 4200); return; }
+  const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.libros) ? parsed.libros : null);   // export de la app o lista suelta
+  if (!raw){ toast('El archivo no contiene una lista de libros', 4200); return; }
+  const incoming = raw.map(cleanBook).filter(Boolean);
+  const invalid = raw.length - incoming.length;
+  if (!incoming.length){ toast('No hay ningún libro válido en el archivo', 4200); return; }
+
+  const dup = incoming.filter(b => books.some(x => sameBookAs(x, b))).length;
+  pendingImport = incoming;
+  const n = (k, s, p) => k === 1 ? `1 ${s}` : `${k} ${p}`;
+  $('#importSum').innerHTML =
+    `«${esc(file.name)}» contiene <b>${n(incoming.length, 'libro', 'libros')}</b>: ` +
+    `${n(incoming.length - dup, 'nuevo', 'nuevos')} y ${n(dup, 'que ya tienes', 'que ya tienes')}.` +
+    (invalid ? `<br>${invalid === 1 ? 'Se ignorará 1 entrada' : `Se ignorarán ${invalid} entradas`} sin título o autor.` : '') +
+    `<br>Ahora tienes ${n(books.length, 'libro', 'libros')} en tu biblioteca.`;
+  $('#importModal').classList.add('show'); $('#importModal').setAttribute('aria-hidden', 'false');
+  setTimeout(() => $('#impMerge').focus(), 120);
+}
+function closeImport(){ $('#importModal').classList.remove('show'); $('#importModal').setAttribute('aria-hidden', 'true'); pendingImport = null; }
+
+function applyImport(mode){
+  const incoming = pendingImport; if (!incoming) return;
+  try { localStorage.setItem(STORAGE_KEY + '-antes-de-importar', JSON.stringify(books)); } catch(e){}   // copia de respaldo local
+  const fresh = (b, i) => ({ ...b, id: b.id && !used.has(b.id) ? b.id : 'b' + (Date.now() + i) });
+  const used = new Set();
+  let next, added = 0, merged = 0;
+  if (mode === 'replace'){
+    exportLibrary('_antes-de-reemplazar');           // copia descargada de la biblioteca actual
+    next = incoming.map((b, i) => { const x = fresh(b, i); used.add(x.id); return x; });
+    added = next.length;
+  } else {
+    next = books.map(b => ({ ...b }));
+    next.forEach(b => used.add(b.id));
+    incoming.forEach((b, i) => {
+      const at = next.findIndex(x => sameBookAs(x, b));
+      if (at >= 0){ next[at] = mergeBook(next[at], b); merged++; }
+      else { const x = fresh(b, i); used.add(x.id); next.push(x); added++; }
+    });
+  }
+  books = withStatus(next);
+  closeImport(); closeForm(); closeStage();
+  save(); renderShelves();
+  toast(mode === 'replace'
+    ? `Biblioteca reemplazada: ${added} libros. Se ha descargado una copia de la anterior.`
+    : `Importación completada: ${added} ${added === 1 ? 'libro nuevo' : 'libros nuevos'}` + (merged ? ` · ${merged} que ya tenías, completados si les faltaba algo` : ''), 5200);
+  backgroundScans();
+}
+
+let books = load();
+let currentId = null;
+let editingId = null;
+
+/* =========================================================
+   NIVEL 1 · Estantería
+   ========================================================= */
+function renderShelves(){
+  const bc = $('#bookcase');
+  bc.innerHTML = '';
+  const style = getComputedStyle(bc);
+  const inner = bc.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 28;
+  const decoW = 80;
+
+  // Filtro del pasaporte: solo los libros de autores/as de ese país
+  if (countryFilter && !books.some(b => b.country === countryFilter)) countryFilter = '';
+  const shown = countryFilter ? books.filter(b => b.country === countryFilter) : books;
+  $('#filterBar').hidden = !countryFilter;
+  if (countryFilter) $('#filterText').innerHTML = `Pasaporte · <b>${esc(countryFilter)}</b> — ${shown.length === 1 ? '1 libro' : shown.length + ' libros'}`;
+
+  const shelves = [[]]; let used = 0;
+  [...shown, { __add:true }].forEach(b => {
+    const w = b.__add ? 46 : dims(b).w + 5;
+    const cap = inner - (shelves.length === 1 ? decoW : 0);
+    if (used + w > cap && shelves[shelves.length - 1].length){ shelves.push([]); used = 0; }
+    shelves[shelves.length - 1].push(b); used += w;
+  });
+  while (shelves.length < 2) shelves.push([]);
+
+  shelves.forEach((row, i) => {
+    const shelf = document.createElement('div');
+    shelf.className = 'shelf';
+    if (!books.length && i === 0) shelf.insertAdjacentHTML('beforeend', '<p class="empty">Tu estantería está esperando su primer libro.</p>');
+    row.forEach(b => shelf.appendChild(b.__add ? addSlotEl() : spineEl(b)));
+    if (i === 0 && shown.length) shelf.insertAdjacentHTML('beforeend', '<div class="deco" aria-hidden="true"><span class="stem"></span><span class="stem"></span><span class="stem"></span><span class="vase"></span></div>');
+    bc.appendChild(shelf);
+  });
+
+  const n = books.length;
+  const by = s => books.filter(b => b.status === s).length;
+  const parts = [n === 1 ? '1 libro' : n + ' libros'];
+  if (by('leido'))     parts.push(by('leido') + (by('leido') === 1 ? ' leído' : ' leídos'));
+  if (by('leyendo'))   parts.push(by('leyendo') + ' leyendo');
+  if (by('pendiente')) parts.push(by('pendiente') + (by('pendiente') === 1 ? ' pendiente' : ' pendientes'));
+  $('#count').textContent = parts.join(' · ');
+}
+
+function addSlotEl(){
+  const el = document.createElement('button');
+  el.className = 'spine-add'; el.textContent = '+';
+  el.setAttribute('aria-label', 'Añadir libro'); el.title = 'Añadir libro';
+  el.addEventListener('click', () => openForm());
+  return el;
+}
+
+function spineEl(b){
+  const { w, h } = dims(b);
+  const el = document.createElement('button');
+  el.className = 'spine';
+  el.dataset.id = b.id;
+  const fs = b.title.length > 26 ? 12 : b.title.length > 18 ? 13.5 : 15;
+  el.style.cssText = `width:${w}px;height:${h}px;background:${b.color || PALETTE[0]};color:${ink(b.color)}`;
+  const hasAward = b.awards && b.awards.length;
+  el.setAttribute('aria-label', `${b.title}, de ${b.author}` + (STATUS[b.status] ? ` (${STATUS[b.status].toLowerCase()})` : '') + (hasAward ? ` · ${b.awards.join(', ')}` : ''));
+  el.innerHTML = (b.status === 'leyendo' ? '<span class="mark" aria-hidden="true"></span>' : '') + `<span class="band"></span><span class="t" style="font-size:${fs}px">${esc(b.title)}</span><span class="band"></span>${hasAward ? '<span class="seal-dot" aria-hidden="true"></span>' : ''}<span class="a">${esc(initials(b.author))}</span>`;
+  el.addEventListener('click', () => openBook(b.id));
+  return el;
+}
+
+/* =========================================================
+   NIVEL 2 · Despliegue de portada
+   ========================================================= */
+function buildBook(b){
+  const { d } = dims(b);
+  const col = b.color || PALETTE[0], fg = ink(col);
+  const book = $('#book3d');
+  book.style.setProperty('--d', d + 'px');
+  const coverStyle = `background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(0,0,0,.04)),${col};color:${fg}`;
+  book.innerHTML = `
+    <div class="face front"><div class="cover" style="${coverStyle}">
+      <span class="g">${esc(b.genre || '')}</span>
+      <div class="mid"><div class="ct">${esc(b.title)}</div><div class="rule"></div></div>
+      <span class="ca">${esc(b.author)}</span>
+    </div>${sealHTML(b)}</div>
+    <div class="face back" style="background:${col}"></div>
+    <div class="face side-l" style="background:${col};color:${fg}"><span>${esc(b.title)}</span></div>
+    <div class="face side-r"></div>
+    <div class="face side-t"></div>
+    <div class="face side-b"></div>`;
+  if (b.cover) attachCover(book.querySelector('.cover'), b.cover);
+}
+
+/* Coloca la imagen real sobre la portada generada; si falla, se queda la generada */
+function hiRes(url){ return /books\.google/.test(url) ? [url + '&fife=w640', url] : [url]; }
+function attachCover(box, url){
+  const cands = hiRes(url); let i = 0;
+  const img = new Image(); img.className = 'cover-img'; img.alt = '';
+  img.onload  = () => box.classList.add('img');
+  img.onerror = () => { i++; if (i < cands.length) img.src = cands[i]; else { img.remove(); box.classList.remove('img'); } };
+  img.src = cands[0]; box.appendChild(img);
+}
+
+/* =========================================================
+   BÚSQUEDA DE PORTADAS REALES (Google Books + Open Library)
+   Requiere conexión a internet. No necesita claves.
+   ========================================================= */
+/* Con ISBN, primero va la portada de esa edición exacta y luego las demás ediciones de la obra.
+   Devuelve también los datos básicos (título, autor/a, páginas) que encuentre para ese ISBN. */
+async function searchCovers(title, author, isbn = ''){
+  if (!navigator.onLine) throw new Error('sin-conexion');
+  const q = encodeURIComponent, mine = [], editions = [], google = [], ol = [], seen = new Set(), texts = [];
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const sameBook = t => { const a = norm(t), b = norm(title); return !!b && a.length > 3 && (a.includes(b) || b.includes(a)); };
+  const gPush = (it, list, exact) => {
+    const v = it.volumeInfo || {}, il = v.imageLinks;
+    if (exact || sameBook(v.title)) texts.push([v.title, v.subtitle, v.description, (v.categories || []).join(' '), it.searchInfo && it.searchInfo.textSnippet].filter(Boolean).join(' '));
+    if (!il) return;
+    const u = (il.thumbnail || il.smallThumbnail).replace(/^http:/, 'https:').replace('&edge=curl', '');
+    if (seen.has(u)) return; seen.add(u);
+    list.push({ url: u, thumb: u, mine: exact, label: [v.publisher, (v.publishedDate || '').slice(0,4), (v.language || '').toUpperCase()].filter(Boolean).join(' · ') || v.title });
+  };
+  const olPush = (id, label, list, exact) => {
+    if (!id || id < 0 || seen.has('ol' + id)) return; seen.add('ol' + id);
+    list.push({ url: `https://covers.openlibrary.org/b/id/${id}-L.jpg`, thumb: `https://covers.openlibrary.org/b/id/${id}-M.jpg`, label, mine: exact });
+  };
+  let googleOK = false, wiki = null, gMeta = null, olMeta = null;
+  const reqs = [];
+  if (title){
+    const gQuery = 'intitle:' + title + (author ? ' inauthor:' + author : '');
+    reqs.push(
+      fetch(`https://www.googleapis.com/books/v1/volumes?q=${q(gQuery)}&maxResults=16&printType=books`)
+        .then(r => { googleOK = googleOK || r.ok; return r.ok ? r.json() : {}; }).then(d => (d.items || []).forEach(it => gPush(it, google, false))),
+      fetch(`https://openlibrary.org/search.json?title=${q(title)}${author ? '&author=' + q(author) : ''}&fields=title,subject,cover_i,first_publish_year,editions,editions.cover_i&limit=10`)
+        .then(r => r.ok ? r.json() : {}).then(d => (d.docs || []).forEach(x => {
+          if (sameBook(x.title) && x.subject) texts.push(x.subject.join(' · '));
+          [x.cover_i, ...((x.editions && x.editions.docs) || []).map(e => e.cover_i)].forEach(id => olPush(id, [x.title, x.first_publish_year].filter(Boolean).join(' · '), ol, false));
+        })),
+      wikidataAwards(title, author).then(w => { wiki = w; })
+    );
+  }
+  if (isbn){
+    reqs.push(
+      fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`)
+        .then(r => { googleOK = googleOK || r.ok; return r.ok ? r.json() : {}; }).then(d => (d.items || []).forEach((it, i) => {
+          const v = it.volumeInfo || {};
+          if (!i) gMeta = { title: [v.title, v.subtitle].filter(Boolean).join(': '), author: (v.authors || []).join(', '), pages: v.pageCount || null };
+          gPush(it, mine, true);
+        })),
+      olEditions(isbn).then(r => {
+        olMeta = r.meta;
+        r.list.forEach(e => olPush(e.cover, e.label, e.mine ? mine : editions, e.mine));
+      })
+    );
+  }
+  const res = await Promise.allSettled(reqs);
+  const all = [...mine, ...editions, ...google, ...ol].slice(0, 30);
+  if (!all.length && res.length && res.every(r => r.status === 'rejected')) throw new Error('sin-conexion');
+  return { covers: all, awards: mergeAwards(detectAwards(texts.join('\n')), wiki || []),
+           checked: googleOK || wiki !== null,     // false si ninguna fuente fiable respondió (p. ej. cuota de Google agotada)
+           meta: (gMeta && gMeta.title) ? gMeta : olMeta };
+}
+
+/* Open Library: la edición de ese ISBN y las demás ediciones de la misma obra (las de su idioma primero) */
+async function olEditions(isbn){
+  const get = url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+  const ed = await get(`https://openlibrary.org/isbn/${isbn}.json`);
+  if (!ed) return { meta: null, list: [] };
+  const lang = e => ((((e.languages || [])[0] || {}).key || '').split('/').pop() || '');
+  const LANG = { spa:'ES', eng:'EN', fre:'FR', ger:'DE', ita:'IT', por:'PT', cat:'CA', glg:'GL', baq:'EU' };
+  const label = e => [(e.publishers || [])[0], ((e.publish_date || '').match(/\d{4}/) || [])[0], LANG[lang(e)] || lang(e).toUpperCase()].filter(Boolean).join(' · ') || e.title;
+  const workKey = ed.works && ed.works[0] && ed.works[0].key, edAuthor = ed.authors && ed.authors[0] && ed.authors[0].key;
+  let [author, work, workInfo] = await Promise.all([
+    edAuthor ? get(`https://openlibrary.org${edAuthor}.json`) : null,
+    workKey ? get(`https://openlibrary.org${workKey}/editions.json?limit=80`) : null,
+    !edAuthor && workKey ? get(`https://openlibrary.org${workKey}.json`) : null      // si la edición no trae autor/a, lo tiene la obra
+  ]);
+  const wAuthor = workInfo && workInfo.authors && workInfo.authors[0] && workInfo.authors[0].author;
+  if (!author && wAuthor) author = await get(`https://openlibrary.org${wAuthor.key}.json`);
+  const others = ((work && work.entries) || []).filter(e => !(e.isbn_13 || []).includes(isbn))
+    .sort((a, b) => (lang(b) === lang(ed)) - (lang(a) === lang(ed)));
+  return {
+    meta: { title: [ed.title, ed.subtitle].filter(Boolean).join(': '), author: (author && author.name) || '',
+            pages: ed.number_of_pages || +(((ed.pagination || '').match(/\d{2,4}/) || [])[0]) || null },
+    list: [{ cover: (ed.covers || [])[0], label: label(ed), mine: true }, ...others.map(e => ({ cover: (e.covers || [])[0], label: label(e), mine: false }))]
+  };
+}
+
+/* =========================================================
+   ISBN · validación y escáner de código de barras
+   ========================================================= */
+function ean13check(d12){ let s = 0; for (let i = 0; i < 12; i++) s += +d12[i] * (i % 2 ? 3 : 1); return String((10 - s % 10) % 10); }
+/* Devuelve el ISBN-13 limpio, o '' si no es válido. Acepta ISBN-10 (lo convierte) y guiones/espacios. */
+function toISBN13(s){
+  const d = String(s || '').toUpperCase().replace(/[^0-9X]/g, '');
+  if (/^97[89]\d{10}$/.test(d)) return ean13check(d.slice(0, 12)) === d[12] ? d : '';
+  if (/^\d{9}[\dX]$/.test(d)){
+    let s10 = 0; for (let i = 0; i < 10; i++) s10 += (10 - i) * (d[i] === 'X' ? 10 : +d[i]);
+    if (s10 % 11) return '';
+    const b = '978' + d.slice(0, 9); return b + ean13check(b);
+  }
+  return '';
+}
+
+const SCAN_LIB = { src: 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',
+                   sri: 'sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+' };
+let scanLibP = null;
+/* html5-qrcode solo se descarga si el navegador no trae lector propio (BarcodeDetector), p. ej. en iPhone */
+function loadScanLib(){
+  return scanLibP = scanLibP || new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = SCAN_LIB.src; s.integrity = SCAN_LIB.sri; s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(window.__Html5QrcodeLibrary__);
+    s.onerror = () => { scanLibP = null; s.remove(); reject(new Error('lib')); };
+    document.head.appendChild(s);
+  });
+}
+async function nativeDetector(){
+  if (!('BarcodeDetector' in window)) return null;
+  try { return (await BarcodeDetector.getSupportedFormats()).includes('ean_13') ? new BarcodeDetector({ formats: ['ean_13'] }) : null; }
+  catch(e){ return null; }
+}
+
+const scan = { stream: null, timer: 0, lib: null, done: false };
+const scanOpen = () => $('#scanModal').classList.contains('show');
+function scanStatus(msg){ $('#scanStatus').textContent = msg; }
+function scanOff(msg){
+  $('#scanView').classList.add('off');
+  $('#scanVideo').innerHTML = `<p class="scan-msg">${esc(msg)}</p>`;
+  scanStatus('');
+}
+
+async function openScanner(){
+  scan.done = false;
+  $('#scanManual').value = '';
+  $('#scanView').classList.remove('off'); $('#scanVideo').innerHTML = '';
+  $('#scanModal').classList.add('show'); $('#scanModal').setAttribute('aria-hidden', 'false');
+  if (!window.isSecureContext || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+    scanOff('La cámara solo funciona con la app instalada o abierta desde https. Puedes escribir el ISBN o usar una foto del código.');
+    return;
+  }
+  scanStatus('Abriendo la cámara…');
+  try {
+    const det = await nativeDetector();
+    if (det){
+      scan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      if (!scanOpen()) return stopScanner();                       // se cerró mientras pedía permiso
+      const v = document.createElement('video');
+      v.setAttribute('playsinline', ''); v.muted = true; v.srcObject = scan.stream;
+      $('#scanVideo').appendChild(v); await v.play();
+      scanStatus('Apunta al código de barras de la contraportada');
+      const tick = async () => {
+        if (scan.done || !scan.stream) return;
+        try { for (const c of await det.detect(v)) if (onCode(c.rawValue)) return; } catch(e){}
+        scan.timer = setTimeout(tick, 160);
+      };
+      tick();
+    } else {
+      const lib = await loadScanLib();
+      if (!scanOpen()) return;
+      scan.lib = new lib.Html5Qrcode('scanVideo', { formatsToSupport: [lib.Html5QrcodeSupportedFormats.EAN_13], verbose: false });
+      await scan.lib.start({ facingMode: 'environment' }, { fps: 12, aspectRatio: 4 / 3 }, text => onCode(text), () => {});
+      if (!scanOpen()) return stopScanner();
+      scanStatus('Apunta al código de barras de la contraportada');
+    }
+  } catch(e){
+    stopScanner();
+    scanOff(e && e.name === 'NotAllowedError' ? 'No hay permiso para usar la cámara. Actívalo en el navegador, o escribe el ISBN.'
+          : e && e.message === 'lib' ? 'No se ha podido cargar el lector (¿sin conexión?). Escribe el ISBN.'
+          : 'No se ha podido abrir la cámara. Escribe el ISBN o usa una foto del código.');
+  }
+}
+function stopScanner(){
+  clearTimeout(scan.timer);
+  if (scan.stream){ scan.stream.getTracks().forEach(t => t.stop()); scan.stream = null; }
+  if (scan.lib){
+    const l = scan.lib; scan.lib = null;
+    Promise.resolve(l.isScanning ? l.stop() : null).then(() => l.clear()).catch(() => {});
+  } else if (!$('#scanView').classList.contains('off')) $('#scanVideo').innerHTML = '';
+}
+function closeScanner(){
+  stopScanner();
+  $('#scanModal').classList.remove('show'); $('#scanModal').setAttribute('aria-hidden', 'true');
+}
+/* Devuelve true si el código era un ISBN y ya se ha usado */
+function onCode(raw){
+  if (scan.done) return true;
+  const isbn = toISBN13(raw);
+  if (!isbn){ scanStatus('Ese código no es un ISBN de libro (empieza por 978 o 979). Prueba con el otro código.'); return false; }
+  scan.done = true;
+  if (navigator.vibrate) navigator.vibrate(60);
+  closeScanner();
+  $('#f-isbn').value = isbn;
+  searchEditions();
+  return true;
+}
+async function decodePhoto(file){
+  const det = await nativeDetector();
+  if (det){ const c = await det.detect(await createImageBitmap(file)); return c.length ? c[0].rawValue : ''; }
+  const lib = await loadScanLib();
+  try { return await new lib.Html5Qrcode('scanFileBox', { formatsToSupport: [lib.Html5QrcodeSupportedFormats.EAN_13], verbose: false }).scanFile(file, false); }
+  catch(e){ return ''; }
+}
+
+/* =========================================================
+   TARJETA LITERARIA · postal 1080×1350 dibujada en canvas (sin librerías)
+   ========================================================= */
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const CARD = { W: 1080, H: 1350, paper: '#fbfaf8', bg: '#f5f3ef', ink: '#2e2c29', muted: '#8b877f', line: '#e5e1da',
+               serif: '"Cormorant Garamond", Georgia, serif', sans: 'Inter, "Segoe UI", Helvetica, Arial, sans-serif' };
+
+/* Solo sirven portadas que permitan copiarse (CORS); si no, se dibuja la portada de diseño */
+function loadCorsImage(url){
+  return new Promise(resolve => {
+    if (!url) return resolve(null);
+    const img = new Image(), data = url.startsWith('data:');
+    if (!data) img.crossOrigin = 'anonymous';
+    const t = setTimeout(() => resolve(null), 8000);
+    img.onload = () => { clearTimeout(t); resolve(img.naturalWidth > 20 ? img : null); };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
+    img.src = data ? url : url + (url.includes('?') ? '&' : '?') + 'tarjeta=1';   // evita reutilizar una copia en caché sin CORS
+  });
+}
+function wrapText(x, text, maxW, maxLines){
+  const words = String(text).split(/\s+/).filter(Boolean), lines = [];
+  let cur = '';
+  for (const w of words){
+    const t = cur ? cur + ' ' + w : w;
+    if (x.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines){
+    lines.length = maxLines;
+    let last = lines[maxLines - 1];
+    while (last && x.measureText(last + '…').width > maxW) last = last.replace(/\s*\S+$/, '');
+    lines[maxLines - 1] = last.replace(/[,;:.\s]+$/, '') + '…';
+  }
+  return lines;
+}
+function rrect(x, X, Y, w, h, r){ x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
+function star(x, cx, cy, R){
+  x.beginPath();
+  for (let i = 0; i < 10; i++){ const r = i % 2 ? R * .45 : R, a = -Math.PI / 2 + i * Math.PI / 5; x.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a)); }
+  x.closePath();
+}
+function spaced(x, px){ if ('letterSpacing' in x) x.letterSpacing = px + 'px'; }
+
+async function renderCard(b){
+  const { W, H, serif, sans } = CARD;
+  await Promise.all([`500 66px ${serif}`, `italic 500 40px ${serif}`, `600 26px ${serif}`, `300 18px ${sans}`, `400 18px ${sans}`]
+    .map(f => document.fonts.load(f).catch(() => {})));
+  let img = null;
+  for (const u of (b.cover ? hiRes(b.cover) : [])){ img = await loadCorsImage(u); if (img) break; }
+
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  x.fillStyle = CARD.bg; x.fillRect(0, 0, W, H);
+  rrect(x, 44, 44, W - 88, H - 88, 10); x.fillStyle = CARD.paper; x.fill(); x.strokeStyle = CARD.line; x.lineWidth = 2; x.stroke();
+
+  /* Medir para centrar el bloque en vertical */
+  x.font = `500 66px ${serif}`; const tLines = wrapText(x, b.title, 820, 3);
+  const q = (b.quote || '').trim().replace(/^[«"“]+|[»"”]+$/g, '');
+  x.font = `italic 500 40px ${serif}`; const qLines = q ? wrapText(x, '«' + q + '»', 800, 5) : [];
+  const rate = b.rating || 0;
+  const textH = 70 + tLines.length * 74 + 52 + (rate ? 64 : 0) + (qLines.length ? 46 + 40 + qLines.length * 54 : 0);
+  const top = 176, avail = H - 150 - top;
+  let CH = Math.max(360, Math.min(560, avail - textH)), CW = Math.round(CH * 2 / 3);
+  let y = top + Math.max(0, (avail - CH - textH) / 2);
+  const cx = W / 2, X0 = cx - CW / 2;
+
+  /* Cabecera */
+  x.font = `400 17px ${sans}`; x.fillStyle = CARD.muted; spaced(x, 6); x.fillText('MI BIBLIOTECA', cx, 112); spaced(x, 0);
+
+  /* Portada con sombra suave */
+  x.save(); x.shadowColor = 'rgba(40,35,30,.26)'; x.shadowBlur = 64; x.shadowOffsetY = 30;
+  rrect(x, X0, y, CW, CH, 6); x.fillStyle = b.color || PALETTE[0]; x.fill(); x.restore();
+  x.save(); rrect(x, X0, y, CW, CH, 6); x.clip();
+  if (img){
+    const s = Math.max(CW / img.naturalWidth, CH / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
+    x.drawImage(img, X0 + (CW - w) / 2, y + (CH - h) / 2, w, h);
+  } else {
+    const col = b.color || PALETTE[0], fg = ink(col);
+    const g = x.createLinearGradient(X0, y, X0 + CW, y + CH); g.addColorStop(0, 'rgba(255,255,255,.14)'); g.addColorStop(1, 'rgba(0,0,0,.04)');
+    x.fillStyle = g; x.fillRect(X0, y, CW, CH);
+    x.strokeStyle = fg; x.globalAlpha = .22; x.lineWidth = 1.5; x.strokeRect(X0 + 24, y + 20, CW - 44, CH - 40); x.globalAlpha = 1;
+    x.fillStyle = fg;
+    x.font = `400 13px ${sans}`; spaced(x, 4); x.globalAlpha = .7; x.fillText((b.genre || '').toUpperCase(), cx + 6, y + 64); spaced(x, 0); x.globalAlpha = 1;
+    x.font = `500 ${CW > 340 ? 44 : 38}px ${serif}`;
+    const cl = wrapText(x, b.title, CW - 90, 4), lh = CW > 340 ? 48 : 42;
+    cl.forEach((l, i) => x.fillText(l, cx + 6, y + CH / 2 - (cl.length - 1) * lh / 2 + i * lh));
+    x.fillRect(cx - 16, y + CH / 2 + cl.length * lh / 2 + 6, 36, 1.5);
+    x.font = `400 14px ${sans}`; spaced(x, 3); x.globalAlpha = .8; x.fillText(b.author.toUpperCase(), cx + 6, y + CH - 54); spaced(x, 0); x.globalAlpha = 1;
+  }
+  const sh = x.createLinearGradient(X0, 0, X0 + 26, 0);    // lomo
+  sh.addColorStop(0, 'rgba(0,0,0,.12)'); sh.addColorStop(.4, 'rgba(255,255,255,.18)'); sh.addColorStop(.6, 'rgba(0,0,0,.06)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = sh; x.fillRect(X0, y, 26, CH);
+  x.restore();
+
+  /* Sello de premio */
+  const award = (b.awards || [])[0];
+  if (award){
+    const fin = award.startsWith(FIN), name = award.replace(FIN, '').replace(/^(Premio|Prix)\s+/, '');
+    const sx = X0 + CW - 12, sy = y + 18, R = 66;
+    x.save(); x.shadowColor = 'rgba(40,35,30,.25)'; x.shadowBlur = 16; x.shadowOffsetY = 5;
+    const rg = x.createRadialGradient(sx - 20, sy - 22, 6, sx, sy, R); rg.addColorStop(0, '#f7eed6'); rg.addColorStop(1, '#d9c08a');
+    x.beginPath(); x.arc(sx, sy, R, 0, Math.PI * 2); x.fillStyle = rg; x.fill(); x.restore();
+    x.beginPath(); x.arc(sx, sy, R - 7, 0, Math.PI * 2); x.strokeStyle = 'rgba(94,74,34,.3)'; x.lineWidth = 1.5; x.stroke();
+    x.fillStyle = '#5e4a22';
+    x.font = `400 12px ${sans}`; spaced(x, 3); x.fillText(fin ? 'FINALISTA' : 'PREMIO', sx, sy - 14); spaced(x, 0);
+    x.font = `600 24px ${serif}`;
+    const nl = wrapText(x, name, 104, 2);
+    nl.forEach((l, i) => x.fillText(l, sx, sy + 14 + i * 24 - (nl.length - 1) * 8));
+  }
+  y += CH + 70;
+
+  /* Título, autor/a, estrellas y frase */
+  x.fillStyle = CARD.ink; x.font = `500 66px ${serif}`;
+  tLines.forEach(l => { y += 66; x.fillText(l, cx, y); y += 8; });
+  x.fillStyle = CARD.muted; x.font = `italic 500 38px ${serif}`; y += 44; x.fillText(b.author, cx, y); y += 8;
+  if (rate){
+    y += 50;
+    for (let i = 0; i < 5; i++){
+      star(x, cx + (i - 2) * 46, y - 12, 15);
+      if (i < rate){ x.fillStyle = CARD.ink; x.fill(); } else { x.strokeStyle = '#b9b4ab'; x.lineWidth = 1.5; x.stroke(); }
+    }
+    y += 14;
+  }
+  if (qLines.length){
+    y += 46; x.fillStyle = CARD.ink; x.globalAlpha = .3; x.fillRect(cx - 28, y, 56, 1.5); x.globalAlpha = 1;
+    y += 40; x.font = `italic 500 40px ${serif}`; x.fillStyle = CARD.ink;
+    qLines.forEach(l => { y += 42; x.fillText(l, cx, y); y += 12; });
+  }
+
+  /* Pie */
+  const foot = [STATUS[b.status], b.date && b.status !== 'pendiente' ? fmtDate(b.date) : ''].filter(Boolean).join(' · ') || b.genre || '';
+  if (foot){ x.font = `400 15px ${sans}`; x.fillStyle = CARD.muted; spaced(x, 4); x.fillText(foot.toUpperCase(), cx, H - 96); spaced(x, 0); }
+
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  return { blob, usedCover: !!img };
+}
+
+let cardURL = null, cardFile = null;
+async function openCard(id){
+  const b = books.find(x => x.id === id); if (!b) return;
+  $('#cardImg').removeAttribute('src'); $('#cardWait').hidden = false; $('#cardNote').textContent = '';
+  $('#cardDownload').disabled = true; $('#cardShare').hidden = true;
+  $('#cardModal').classList.add('show'); $('#cardModal').setAttribute('aria-hidden', 'false');
+  try {
+    const { blob, usedCover } = await renderCard(b);
+    if (!$('#cardModal').classList.contains('show')) return;
+    const name = 'tarjeta_' + (normTxt(b.title).replace(/\s+/g, '-') || 'libro') + '.png';
+    cardFile = new File([blob], name, { type: 'image/png' });
+    if (cardURL) URL.revokeObjectURL(cardURL);
+    cardURL = URL.createObjectURL(blob);
+    $('#cardImg').src = cardURL; $('#cardWait').hidden = true;
+    $('#cardDownload').disabled = false;
+    $('#cardShare').hidden = !(navigator.canShare && navigator.canShare({ files: [cardFile] }));   // móvil: WhatsApp, etc.
+    if (b.cover && !usedCover) $('#cardNote').textContent = 'La web de esta portada no permite copiarla en una imagen; se ha usado la portada de diseño. Puedes subir una foto de tu ejemplar en «Editar».';
+  } catch(e){ $('#cardWait').textContent = 'No se ha podido generar la tarjeta.'; }
+}
+function closeCard(){
+  $('#cardModal').classList.remove('show'); $('#cardModal').setAttribute('aria-hidden', 'true');
+  $('#cardWait').textContent = 'Componiendo tu tarjeta…';
+}
+
+/* =========================================================
+   PASAPORTE LITERARIO · país de origen del autor/a (Wikidata) y sellos
+   ========================================================= */
+const COUNTRY_CODES = {
+  'España':'ES','México':'MX','Argentina':'AR','Colombia':'CO','Chile':'CL','Perú':'PE','Uruguay':'UY','Venezuela':'VE','Cuba':'CU',
+  'Ecuador':'EC','Bolivia':'BO','Paraguay':'PY','Guatemala':'GT','Nicaragua':'NI','Honduras':'HN','El Salvador':'SV','Costa Rica':'CR',
+  'Panamá':'PA','República Dominicana':'DO','Puerto Rico':'PR','Estados Unidos':'US','Canadá':'CA','Brasil':'BR','Reino Unido':'GB',
+  'Irlanda':'IE','Francia':'FR','Alemania':'DE','Italia':'IT','Portugal':'PT','Países Bajos':'NL','Bélgica':'BE','Suiza':'CH',
+  'Austria':'AT','Suecia':'SE','Noruega':'NO','Dinamarca':'DK','Finlandia':'FI','Islandia':'IS','Polonia':'PL','Chequia':'CZ',
+  'Hungría':'HU','Rumanía':'RO','Grecia':'GR','Rusia':'RU','Ucrania':'UA','Turquía':'TR','Israel':'IL','Líbano':'LB','Irán':'IR',
+  'Egipto':'EG','Marruecos':'MA','Argelia':'DZ','Nigeria':'NG','Senegal':'SN','Sudáfrica':'ZA','Kenia':'KE','India':'IN',
+  'China':'CN','República Popular China':'CN','Japón':'JP','Corea del Sur':'KR','Australia':'AU','Nueva Zelanda':'NZ'
+};
+const STAMP_INK = ['#6b6250', '#5e7268', '#7a5f6e', '#4f6478', '#8a5a4f', '#5f5c57'];
+function countryCode(name){
+  const n = normTxt(name);
+  const hit = Object.keys(COUNTRY_CODES).find(k => normTxt(k) === n);
+  return hit ? COUNTRY_CODES[hit] : '';
+}
+const firstAuthor = a => String(a || '').split(/,|;|\s+y\s+|\s+&\s+/)[0].trim();
+
+/* Wikidata: país de nacimiento del autor/a (país actual de su lugar de nacimiento) o, si no, su nacionalidad.
+   1) a través del libro (obra → autor/a), que es lo más fiable; 2) por el nombre, solo si no hay dudas
+   de que es esa persona. Devuelve null si Wikidata no responde y { name:'', code:'' } si no lo sabe. */
+async function wikidataCountry(author, title = ''){
+  const name = firstAuthor(author); if (!name) return { name: '', code: '' };
+  const lit = s => '"' + String(s).replace(/["\\]/g, ' ') + '"';
+  const COUNTRY = `?author wdt:P31 wd:Q5.
+    OPTIONAL { ?author wdt:P19 ?bp. ?bp wdt:P17 ?bc. OPTIONAL { ?bc wdt:P297 ?bcIso. } }
+    OPTIONAL { ?author wdt:P27 ?cit. OPTIONAL { ?cit wdt:P297 ?citIso. } }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en". }`;
+  const run = async sparql => {
+    const r = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql), { headers: { Accept: 'application/sparql-results+json' } });
+    if (!r.ok) throw new Error('wikidata');
+    return (await r.json()).results.bindings;
+  };
+  const want = normTxt(name), words = new Set(want.split(' ').filter(w => w.length > 2));
+  const group = rows => {
+    const cands = new Map();
+    rows.forEach(x => {
+      const id = x.author.value, lbl = normTxt(x.authorLabel && x.authorLabel.value);
+      const c = cands.get(id) || { ord: x.ord ? +x.ord.value : 0, isAuthor: !x.isAuthor || x.isAuthor.value === 'true', exact: lbl === want,
+                                  overlap: lbl.split(' ').filter(w => words.has(w)).length, bc: [], cit: [] };
+      if (x.bcLabel) c.bc.push({ name: x.bcLabel.value, code: x.bcIso ? x.bcIso.value : '' });
+      if (x.citLabel) c.cit.push({ name: x.citLabel.value, code: x.citIso ? x.citIso.value : '' });
+      cands.set(id, c);
+    });
+    return [...cands.values()].filter(c => c.overlap >= Math.min(2, words.size));
+  };
+  const result = c => {
+    const pick = c && (c.bc.find(x => x.code) || c.cit.find(x => x.code) || c.bc[0] || c.cit[0]);
+    if (!pick || /^Q\d+$/.test(pick.name)) return { name: '', code: '' };
+    const n = pick.name === 'República Popular China' ? 'China' : pick.name;
+    return { name: n, code: pick.code || countryCode(n) };
+  };
+  try {
+    if (title){
+      const viaBook = group(await run(`SELECT ?author ?authorLabel ?bcLabel ?bcIso ?citLabel ?citIso WHERE {
+        SERVICE wikibase:mwapi { bd:serviceParam wikibase:endpoint "www.wikidata.org"; wikibase:api "EntitySearch";
+          mwapi:search ${lit(title)}; mwapi:language "es"; mwapi:limit "8". ?item wikibase:apiOutputItem mwapi:item. }
+        ?item wdt:P50 ?author. ${COUNTRY} } LIMIT 200`));
+      if (viaBook.length) return result(viaBook[0]);
+    }
+    const byName = group(await run(`SELECT ?author ?authorLabel ?ord ?isAuthor ?bcLabel ?bcIso ?citLabel ?citIso WHERE {
+      SERVICE wikibase:mwapi { bd:serviceParam wikibase:endpoint "www.wikidata.org"; wikibase:api "EntitySearch";
+        mwapi:search ${lit(name)}; mwapi:language "es"; mwapi:limit "6". ?author wikibase:apiOutputItem mwapi:item. ?ord wikibase:apiOrdinal true. }
+      BIND(EXISTS { ?w wdt:P50 ?author } AS ?isAuthor) ${COUNTRY} } LIMIT 200`));
+    const authors = byName.filter(c => c.isAuthor).sort((a, b) => b.exact - a.exact || a.ord - b.ord);
+    if (authors.length) return result(authors[0]);
+    const exact = byName.filter(c => c.exact);
+    return exact.length === 1 ? result(exact[0]) : { name: '', code: '' };   // varias personas con ese nombre: mejor no adivinar
+  } catch(e){ return null; }
+}
+
+/* Revisa en segundo plano los libros sin país (una consulta por autor/a) */
+let scanningC = false;
+async function scanCountries(){
+  if (scanningC || !navigator.onLine) return;
+  scanningC = true;
+  const cache = new Map(); let changed = false, found = 0;
+  try {
+    for (const { id } of books.filter(x => !x.country && !x.countryChecked)){
+      const b0 = books.find(x => x.id === id); if (!b0) continue;
+      const key = normTxt(firstAuthor(b0.author));
+      const known = books.find(x => x.country && normTxt(firstAuthor(x.author)) === key);   // mismo autor/a en otro libro
+      let r = known ? { name: known.country, code: known.countryCode } : cache.get(key);
+      if (r === undefined){
+        r = await wikidataCountry(b0.author, b0.title);
+        if (r === null) break;                       // Wikidata no responde: se reintenta otro día
+        cache.set(key, r); await wait(700);
+      }
+      const b = books.find(x => x.id === id); if (!b || b.country) continue;
+      if (r.name){ b.country = r.name; b.countryCode = r.code; found++; }
+      b.countryChecked = true; changed = true;
+    }
+  } finally { scanningC = false; }
+  if (!changed) return;
+  save(); renderShelves();
+  if ($('#passportModal').classList.contains('show')) renderPassport();
+  if (found) toast(found === 1 ? 'País del autor/a detectado en 1 libro' : `País del autor/a detectado en ${found} libros`);
+}
+async function backgroundScans(){ await scanAwards(); await scanCountries(); }
+
+/* Formulario: sugerencias de países y detección al buscar ediciones */
+let formCountry = { name: '', code: '' };
+function fillCountryList(){
+  const names = new Set([...books.map(b => b.country).filter(Boolean), ...Object.keys(COUNTRY_CODES).filter(k => k !== 'República Popular China')]);
+  $('#countryList').innerHTML = [...names].sort((a, b) => a.localeCompare(b, 'es')).map(n => `<option value="${esc(n)}">`).join('');
+}
+async function detectFormCountry(author, title){
+  if (!author || $('#f-country').value.trim()) return;
+  const r = await wikidataCountry(author, title);
+  if (r && r.name && !$('#f-country').value.trim() && $('#f-author').value.trim() === author){
+    $('#f-country').value = r.name; formCountry = r;
+  }
+}
+
+/* Vista del pasaporte */
+let countryFilter = '';
+function renderPassport(){
+  const groups = new Map();
+  books.forEach(b => {
+    if (!b.country) return;
+    const g = groups.get(b.country) || { name: b.country, code: '', n: 0, read: 0 };
+    g.n++; if (b.status === 'leido') g.read++;
+    g.code = g.code || b.countryCode || countryCode(b.country);
+    groups.set(b.country, g);
+  });
+  const list = [...groups.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'es'));
+  const withC = list.reduce((s, g) => s + g.n, 0), without = books.length - withC;
+  const pending = books.filter(b => !b.country && !b.countryChecked).length;
+  $('#passportSum').textContent = list.length
+    ? `${list.length === 1 ? '1 país' : list.length + ' países'} · ${withC === 1 ? '1 libro' : withC + ' libros'} con sello`
+    : 'Tu pasaporte aún no tiene sellos';
+  $('#stamps').innerHTML = list.length ? list.map(g => {
+    // forma, giro y tinta salen de partes distintas del hash para que no se repitan juntas
+    let h = hash(g.name); h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0;
+    const shape = (h >>> 3) % 3, rot = ((h >>> 9) % 9) - 4, ink = STAMP_INK[(h >>> 17) % STAMP_INK.length];
+    const code = g.code || g.name.slice(0, 2).toUpperCase();
+    return `<button type="button" class="stamp s${shape}" style="--rot:${rot}deg;--sc:${ink}" data-c="${esc(g.name)}"
+              aria-label="${esc(g.name)}: ${g.n} ${g.n === 1 ? 'libro' : 'libros'}. Ver en la estantería">
+      <span class="st-code">${esc(code)}</span>
+      <span class="st-name">${esc(g.name)}</span>
+      <span class="st-n">${g.n === 1 ? '1 libro' : g.n + ' libros'}</span>
+      ${g.read && g.read !== g.n ? `<span class="st-read">${g.read} ${g.read === 1 ? 'leído' : 'leídos'}</span>` : ''}
+    </button>`;
+  }).join('') : '<p class="pp-empty">Añade libros y el país de cada autor/a aparecerá aquí como un sello de viaje.</p>';
+  $('#passportNote').textContent = [
+    pending ? `Buscando el país de ${pending === 1 ? '1 libro' : pending + ' libros'} en Wikidata…` : '',
+    without - pending > 0 ? `${without - pending === 1 ? '1 libro' : (without - pending) + ' libros'} sin país: puedes añadirlo en «Editar».` : '',
+    list.length ? 'Pulsa un sello para ver en la estantería solo los libros de ese país.' : ''
+  ].filter(Boolean).join(' ');
+}
+function openPassport(){
+  renderPassport();
+  $('#passportModal').classList.add('show'); $('#passportModal').setAttribute('aria-hidden', 'false');
+  if (books.some(b => !b.country && !b.countryChecked)) scanCountries();
+}
+function closePassport(){ $('#passportModal').classList.remove('show'); $('#passportModal').setAttribute('aria-hidden', 'true'); }
+function filterByCountry(name){
+  countryFilter = name;
+  closePassport(); closeStage(); renderShelves();
+  $('#filterBar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* =========================================================
+   EL LIBRO MISTERIOSO · el azar elige entre los pendientes
+   ========================================================= */
+let mysteryBusy = false;
+async function mysteryBook(){
+  if (mysteryBusy) return;
+  const pend = books.filter(b => b.status === 'pendiente');
+  if (!pend.length){ toast('No tienes libros pendientes: marca alguno como «Pendiente» y el azar elegirá por ti', 4200); return; }
+  mysteryBusy = true; $('#mysteryBtn').classList.add('rolling');
+  if ($('#stage').classList.contains('show')){ closeStage(); await wait(560); }
+  const pick = pend[Math.floor(Math.random() * pend.length)];
+  const bc = $('#bookcase');
+  const spines = pend.map(b => bc.querySelector(`.spine[data-id="${CSS.escape(b.id)}"]`)).filter(Boolean);
+  const target = spines.findIndex(s => s.dataset.id === pick.id);
+  try {
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches && target >= 0){
+      bc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      bc.classList.add('shuffling'); spines.forEach(s => s.classList.add('cand'));
+      await wait(380);
+      const n = spines.length, steps = n === 1 ? 5 : 12 + n + Math.floor(Math.random() * n);
+      for (let k = 0; k < steps; k++){                    // recorre los pendientes cada vez más despacio y se detiene en el elegido
+        const idx = ((target - (steps - 1 - k)) % n + n) % n;
+        spines.forEach((s, i) => s.classList.toggle('lit', i === idx));
+        await wait(55 + 330 * Math.pow(k / steps, 2.5));
+      }
+      spines[target].classList.add('chosen');
+      await wait(620);
+    }
+    openBook(pick.id, { mystery: true });
+    await wait(500);
+  } finally {
+    bc.classList.remove('shuffling'); spines.forEach(s => s.classList.remove('cand', 'lit', 'chosen'));
+    $('#mysteryBtn').classList.remove('rolling'); mysteryBusy = false;
+  }
+}
+
+/* =========================================================
+   TEXTO · limpieza de frase y notas
+   ========================================================= */
+function tidyText(s){
+  let t = String(s || '').replace(/\r\n?/g, '\n');
+  t = t.replace(/[“”„]/g, '"').replace(/"([^"\n]+)"/g, '«$1»');        // comillas españolas
+  t = t.replace(/\.{3}/g, '…');
+  t = t.replace(/[ \t ]+/g, ' ');                                   // espacios dobles
+  t = t.replace(/ +([,.;:!?…)\]»])/g, '$1');                             // sin espacio antes de puntuación
+  t = t.replace(/([¿¡(\[«]) +/g, '$1');
+  t = t.replace(/([,;:])(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ¿¡«])/g, '$1 ');          // y con espacio después
+  t = t.replace(/([.!?])(?=[A-ZÁÉÍÓÚÜÑ¿¡«])/g, '$1 ');
+  t = t.split('\n').map(l => l.trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return t.replace(/(^|\n|[.!?]\s+)([¿¡«"(]*)([a-záéíóúüñ])/g, (m, a, b, c) => a + b + c.toUpperCase());   // mayúsculas
+}
+function tidyField(id){
+  const el = $('#' + id), v = tidyText(el.value);
+  if (v === el.value){ toast(el.value ? 'El texto ya estaba limpio' : 'No hay texto que limpiar'); return; }
+  el.focus(); el.select();
+  if (!document.execCommand || !document.execCommand('insertText', false, v)) el.value = v;   // insertText conserva Ctrl+Z
+  toast('Texto limpio · Ctrl+Z para deshacer');
+}
+
+/* Wikidata: premios recibidos (P166) y candidaturas (P1411) de la obra, y el Nobel o
+   Cervantes del autor/a. Gratis y sin clave. Devuelve null si no responde. */
+async function wikidataAwards(title, author){
+  const lit = s => '"' + String(s).replace(/["\\]/g, ' ') + '"';
+  const sparql = `SELECT DISTINCT ?authorLabel ?awardLabel ?kind WHERE {
+    SERVICE wikibase:mwapi { bd:serviceParam wikibase:endpoint "www.wikidata.org"; wikibase:api "EntitySearch";
+      mwapi:search ${lit(title)}; mwapi:language "es"; mwapi:limit "8". ?item wikibase:apiOutputItem mwapi:item. }
+    ?item wdt:P50 ?author.
+    { ?item wdt:P166 ?award. BIND("obra" AS ?kind) } UNION { ?item wdt:P1411 ?award. BIND("finalista" AS ?kind) }
+    UNION { ?author wdt:P166 ?award. BIND("autor" AS ?kind) }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en". }
+  } LIMIT 300`;
+  try {
+    const r = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql), { headers: { Accept: 'application/sparql-results+json' } });
+    if (!r.ok) return null;
+    const rows = (await r.json()).results.bindings;
+    const words = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z]+/).filter(w => w.length > 3);
+    const mine = new Set(words(author));
+    let out = [];
+    rows.forEach(x => {
+      if (author && !words(x.authorLabel?.value).some(w => mine.has(w))) return;   // otra obra con el mismo título
+      const label = x.awardLabel?.value || '', kind = x.kind.value;
+      if (kind === 'autor'){
+        if (/nobel.*literat|literat.*nobel/i.test(label)) out.push('Premio Nobel (autor/a)');
+        else if (/cervantes/i.test(label)) out.push('Premio Cervantes (autor/a)');
+        return;
+      }
+      const found = detectAwards(label).map(a => a.replace(FIN, ''));
+      out = out.concat(kind === 'finalista' ? found.map(a => FIN + a) : found);
+    });
+    return mergeAwards([], out);
+  } catch(e){ return null; }
+}
+
+/* =========================================================
+   PREMIOS LITERARIOS · se detectan en la descripción, subtítulo,
+   categorías (Google Books) y materias (Open Library) de las
+   ediciones cuyo título coincide. Gratis: mismas APIs sin clave.
+   ========================================================= */
+const AWARDS = [
+  ['\\bnobel\\b', 'Premio Nobel'],
+  ['pulitzer', 'Premio Pulitzer'],
+  ['premio\\s+(miguel\\s+de\\s+)?cervantes|cervantes\\s+prize', 'Premio Cervantes'],
+  ['premio\\s+planeta|planeta\\s+prize', 'Premio Planeta'],
+  ['\\bbooker\\b', 'Premio Booker'],
+  ['goncourt', 'Premio Goncourt'],
+  ['premio\\s+nacional\\s+de\\s+(narrativa|las\\s+letras|ensayo|poes[ií]a|literatura)', 'Premio Nacional'],
+  ['(princesa|pr[ií]ncipe)\\s+de\\s+asturias', 'Premio Princesa de Asturias'],
+  ['premio\\s+nadal', 'Premio Nadal'],
+  ['premio\\s+alfaguara', 'Premio Alfaguara'],
+  ['premio\\s+herralde', 'Premio Herralde'],
+  ['premio\\s+anagrama', 'Premio Anagrama'],
+  ['biblioteca\\s+breve', 'Premio Biblioteca Breve'],
+  ['premio\\s+primavera', 'Premio Primavera'],
+  ['r[óo]mulo\\s+gallegos', 'Premio Rómulo Gallegos'],
+  ['premio\\s+de\\s+la\\s+cr[ií]tica', 'Premio de la Crítica'],
+  ['premio\\s+strega|strega\\s+prize', 'Premio Strega'],
+  ['prix\\s+m[ée]dicis', 'Premio Médicis'],
+  ['prix\\s+femina', 'Premio Femina'],
+  ['national\\s+book\\s+award', 'National Book Award'],
+  ['national\\s+book\\s+critics', 'National Book Critics Circle'],
+  ['women.?s\\s+prize|orange\\s+prize', "Women's Prize"],
+  ['costa\\s+book|whitbread', 'Premio Costa'],
+  ['hugo\\s+award|premio\\s+hugo', 'Premio Hugo'],
+  ['nebula\\s+award|premio\\s+nebula', 'Premio Nebula']
+].map(([src, label]) => [new RegExp(src, 'gi'), label]);
+const FINALIST = /(finalista|finalist|shortlist|longlist|nominad[oa]|nominee|nominated|candidat[oa])[^.]*$/i;
+const FIN = 'Finalista · ';
+
+function detectAwards(text){
+  const out = [];
+  for (const [re, label] of AWARDS){
+    let won = false, finalist = false;
+    for (const m of text.matchAll(re)){
+      if (FINALIST.test(text.slice(Math.max(0, m.index - 70), m.index))) finalist = true; else won = true;
+    }
+    if (won) out.push(label); else if (finalist) out.push(FIN + label);
+  }
+  return out;
+}
+/* Une listas sin repetir; si un libro ganó un premio, no se muestra también como finalista */
+function mergeAwards(a, b){
+  const all = [...new Set([...(a || []), ...(b || [])])];
+  return all.filter(x => !(x.startsWith(FIN) && all.includes(x.slice(FIN.length))))
+            .sort((x, y) => x.startsWith(FIN) - y.startsWith(FIN));
+}
+function sealHTML(b){
+  const a = (b.awards || [])[0]; if (!a) return '';
+  const fin = a.startsWith(FIN), name = a.replace(FIN, '').replace(/^(Premio|Prix)\s+/, '');
+  return `<div class="seal" title="${esc(b.awards.join(' · '))}"><span>${fin ? 'Finalista' : 'Premio'}<b>${esc(name)}</b></span></div>`;
+}
+
+/* Revisa en segundo plano los libros aún no analizados (al abrir la app y al guardar uno nuevo) */
+let scanning = false;
+async function scanAwards(){
+  if (scanning || !navigator.onLine) return;
+  scanning = true;
+  const found = []; let changed = false;
+  try {
+    for (const { id } of books.filter(x => !x.awardsChecked)){
+      const b0 = books.find(x => x.id === id); if (!b0) continue;
+      let r; try { r = await searchCovers(b0.title, b0.author); } catch(e){ break; }   // sin conexión: se reintenta otro día
+      if (!r.checked) break;                                                            // fuentes saturadas: se reintenta en la próxima apertura
+      const b = books.find(x => x.id === id); if (!b) continue;                         // borrado mientras tanto
+      b.awards = mergeAwards(b.awards, r.awards); b.awardsChecked = true; changed = true;
+      if (r.awards.length) found.push(b.title);
+      await new Promise(s => setTimeout(s, 900));                                       // sin prisas, para no saturar las APIs
+    }
+  } finally { scanning = false; }
+  if (!changed) return;
+  save(); renderShelves();
+  if (found.length) toast(found.length === 1 ? `Premio literario detectado en «${found[0]}»` : `Premios literarios detectados en ${found.length} libros`, 4200);
+}
+
+/* Color medio de la portada, suavizado hacia el tono papel, para el lomo */
+function colorFromImage(url){
+  return new Promise(resolve => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = 12; c.height = 18;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0, 12, 18);
+        const d = x.getImageData(0, 0, 12, 18).data; let r = 0, g = 0, b = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4){ r += d[i]; g += d[i+1]; b += d[i+2]; n++; }
+        const mix = (v, p) => Math.round(v / n * .72 + p * .28);
+        resolve('#' + [mix(r,245), mix(g,243), mix(b,239)].map(v => v.toString(16).padStart(2,'0')).join(''));
+      } catch(e){ resolve(null); }   // imagen sin permiso CORS: se mantiene el color elegido
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/* Reduce una imagen subida para que ocupe poco (≈50 KB) */
+function fileToDataURL(file){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const W = 420, scale = Math.min(1, W / img.width);
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', .85));
+      };
+      img.onerror = reject; img.src = fr.result;
+    };
+    fr.onerror = reject; fr.readAsDataURL(file);
+  });
+}
+
+function openBook(id, opts = {}){
+  const b = books.find(x => x.id === id); if (!b) return;
+  currentId = id;
+  buildBook(b);
+  const st = $('#stage');
+  st.classList.remove('open');
+  st.classList.toggle('mystery', !!opts.mystery);   // fundido más lento al revelar el libro misterioso
+  st.querySelector('.hint').textContent = opts.mystery ? 'El azar ha elegido este libro · pulsa la portada para ver la ficha' : 'Pulsa la portada para ver la ficha';
+  st.classList.add('show'); st.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => requestAnimationFrame(() => st.classList.add('open')));
+  setTimeout(() => $('#book3d').focus({ preventScroll:true }), 400);
+}
+
+function closeStage(){
+  closePanel();
+  const st = $('#stage');
+  st.classList.remove('open');
+  setTimeout(() => { st.classList.remove('show'); st.setAttribute('aria-hidden', 'true'); }, 520);
+  currentId = null;
+}
+
+/* =========================================================
+   NIVEL 3 · Ficha de lectura
+   ========================================================= */
+function openPanel(){
+  const b = books.find(x => x.id === currentId); if (!b) return;
+  const p = $('#panel');
+  p.innerHTML = `
+    <div class="p-head">
+      <span class="tag">${esc(b.genre || 'Sin género')}</span>
+      <button class="p-close" id="pClose" aria-label="Cerrar ficha">×</button>
+    </div>
+    <h2>${esc(b.title)}</h2>
+    <p class="author">${esc(b.author)}</p>
+    <div class="divider"></div>
+    <dl class="facts">
+      <dt>Estado</dt><dd>${esc(STATUS[b.status] || 'En tu biblioteca')}</dd>
+      ${b.date ? `<dt>Fecha</dt><dd>${esc(fmtDate(b.date))}</dd>` : ''}
+      ${b.rating ? `<dt>Valoración</dt><dd>${dotsHTML(b.rating)}</dd>` : ''}
+      <dt>Género</dt><dd>${esc(b.genre || '—')}</dd>
+      ${b.country ? `<dt>País</dt><dd>${esc(b.country)}</dd>` : ''}
+      ${b.pages ? `<dt>Páginas</dt><dd>${esc(b.pages)}</dd>` : ''}
+      ${b.isbn ? `<dt>ISBN</dt><dd>${esc(b.isbn)}</dd>` : ''}
+    </dl>
+    ${b.awards && b.awards.length ? `<div class="p-section"><h3>Premios</h3>${b.awards.map(a => `<span class="award">${esc(a)}</span>`).join('')}
+      <p class="award-src">Detectado automáticamente en Wikidata, Google Books y Open Library</p></div>` : ''}
+    ${b.quote ? `<div class="p-section"><h3>Frase favorita</h3><p class="quote">${esc(b.quote)}</p></div>` : ''}
+    <div class="p-section"><h3>Notas personales</h3><p class="notes">${b.notes ? esc(b.notes) : '<span style="color:var(--muted)">Aún no has escrito notas sobre este libro.</span>'}</p></div>
+    <div class="p-actions">
+      <button class="btn" id="editBtn">Editar</button>
+      <button class="btn" id="cardBtn">Generar tarjeta</button>
+      <button class="btn quiet danger" id="delBtn">Eliminar</button>
+    </div>`;
+  $('#pClose').onclick = closePanel;
+  $('#editBtn').onclick = () => openForm(b.id);
+  $('#cardBtn').onclick = () => openCard(b.id);
+  $('#delBtn').onclick = () => {
+    if (!confirm(`¿Eliminar «${b.title}» de tu biblioteca?`)) return;
+    books = books.filter(x => x.id !== b.id); save(); closeStage(); renderShelves(); toast('Libro eliminado');
+  };
+  p.classList.add('show'); p.setAttribute('aria-hidden', 'false');
+  $('#scrim').classList.add('show');
+}
+function closePanel(){
+  $('#panel').classList.remove('show'); $('#panel').setAttribute('aria-hidden', 'true');
+  $('#scrim').classList.remove('show');
+}
+const panelOpen = () => $('#panel').classList.contains('show');
+
+/* =========================================================
+   FORMULARIO · Añadir / editar
+   ========================================================= */
+let formRating = 0, formColor = PALETTE[0], formCover = '', colorTouched = false, formStatus = '';
+let formAwards = [], awardsSearched = false;
+
+function paintAwards(){
+  $('#awardField').hidden = !formAwards.length;
+  $('#awardList').innerHTML = formAwards.map((a, i) =>
+    `<span class="award">${esc(a)}<button type="button" data-i="${i}" aria-label="Quitar ${esc(a)}" title="No es correcto: quitar">×</button></span>`).join('');
+}
+
+function paintStatus(){
+  document.querySelectorAll('#statusPick button').forEach(btn => {
+    const on = btn.dataset.s === formStatus;
+    btn.classList.toggle('on', on); btn.setAttribute('aria-checked', on);
+  });
+}
+function paintRating(){ document.querySelectorAll('#ratePick button').forEach((btn, i) => btn.classList.toggle('on', i < formRating)); }
+function paintSwatches(){
+  document.querySelectorAll('#swatches button[data-c]').forEach(btn => btn.classList.toggle('on', btn.dataset.c.toLowerCase() === formColor.toLowerCase()));
+  $('#f-color').value = formColor;
+}
+function setupFormControls(){
+  // Un clic marca el estado; otro clic sobre el mismo lo desmarca (vuelve a «en tu biblioteca»)
+  $('#statusPick').addEventListener('click', e => { const s = e.target.dataset.s; if (s){ formStatus = (formStatus === s ? '' : s); paintStatus(); } });
+  // Quitar un premio mal detectado (no se vuelve a añadir solo)
+  $('#awardList').addEventListener('click', e => { const i = e.target.dataset.i; if (i !== undefined){ formAwards.splice(+i, 1); awardsSearched = true; paintAwards(); } });
+  $('#ratePick').innerHTML = [1,2,3,4,5].map(i => `<button type="button" aria-label="${i} de 5" data-v="${i}"></button>`).join('');
+  $('#ratePick').addEventListener('click', e => { const v = +e.target.dataset.v; if (v){ formRating = (formRating === v ? v - 1 : v); paintRating(); } });
+  $('#swatches').innerHTML = PALETTE.map(c => `<button type="button" data-c="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join('')
+    + '<input type="color" id="f-color" title="Color personalizado">'
+    + '<button type="button" class="from-cover" id="fromCoverBtn" title="Tomar el color de la portada">Color de la portada</button>';
+  $('#swatches').addEventListener('click', e => { if (e.target.dataset.c){ formColor = e.target.dataset.c; colorTouched = true; paintSwatches(); } });
+  $('#f-color').addEventListener('input', e => { formColor = e.target.value; colorTouched = true; paintSwatches(); });
+  $('#fromCoverBtn').addEventListener('click', async () => {
+    if (!formCover){ coverStatus('Elige primero una portada.'); return; }
+    const c = await colorFromImage(hiRes(formCover).pop());
+    if (c){ formColor = c; colorTouched = true; paintSwatches(); coverStatus('Color del lomo tomado de la portada.'); }
+    else coverStatus('Esta imagen no permite leer su color; elige uno de la paleta.');
+  });
+
+  /* Portada y ediciones */
+  $('#searchCoverBtn').addEventListener('click', searchEditions);
+  $('#f-isbn').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); searchEditions(); } });
+
+  /* Escáner */
+  $('#scanBtn').addEventListener('click', openScanner);
+  $('#scanCancel').addEventListener('click', closeScanner);
+  $('#scanModal').addEventListener('click', e => { if (e.target.id === 'scanModal') closeScanner(); });
+  const manual = () => { if (!onCode($('#scanManual').value)) scanStatus('Ese ISBN no es válido: revisa los números (10 o 13 cifras).'); };
+  $('#scanManualBtn').addEventListener('click', manual);
+  $('#scanManual').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); manual(); } });
+  $('#scanPhotoBtn').addEventListener('click', () => $('#scanPhotoFile').click());
+  $('#scanPhotoFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    scanStatus('Leyendo la foto…');
+    try {
+      const raw = await decodePhoto(f);
+      if (!raw) scanStatus('No se ha encontrado ningún código de barras en la foto. Prueba con otra más cerca y nítida.');
+      else onCode(raw);
+    } catch(err){ scanStatus('No se ha podido leer la foto (¿sin conexión?). Escribe el ISBN.'); }
+  });
+
+  /* Limpiar formato */
+  document.querySelectorAll('.tidy').forEach(btn => btn.addEventListener('click', () => tidyField(btn.dataset.for)));
+  $('#uploadCoverBtn').addEventListener('click', () => $('#coverFile').click());
+  $('#coverFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { setCover(await fileToDataURL(f)); coverStatus('Imagen cargada desde tu ordenador.'); }
+    catch(err){ coverStatus('No se ha podido leer la imagen.'); }
+    e.target.value = '';
+  });
+  $('#clearCoverBtn').addEventListener('click', () => { setCover(''); coverStatus('Se usará la portada generada.'); });
+  $('#f-cover').addEventListener('change', e => setCover(e.target.value.trim()));
+}
+
+function coverStatus(msg){ $('#coverStatus').textContent = msg; }
+
+/* Busca por ISBN y/o título: rellena lo que falte y muestra las ediciones para elegir con un clic */
+let searchRun = 0;
+async function searchEditions(){
+  const run = ++searchRun;                           // si se lanza otra búsqueda, esta se descarta
+  const rawIsbn = $('#f-isbn').value.trim(), isbn = toISBN13(rawIsbn);
+  let title = $('#f-title').value.trim(), author = $('#f-author').value.trim();
+  if (rawIsbn && !isbn){ coverStatus('Ese ISBN no es válido: revisa los números (10 o 13 cifras).'); return; }
+  if (!title && !isbn){ coverStatus('Escribe el título o el ISBN (o escanéalo).'); return; }
+  if (isbn) $('#f-isbn').value = isbn;
+  const hadTitle = !!title;
+  coverStatus(isbn ? 'Buscando la edición de ese ISBN…' : 'Buscando ediciones…'); $('#coverResults').innerHTML = '';
+  try {
+    let res = await searchCovers(title, author, isbn);
+    if (run !== searchRun) return;
+    const m = res.meta;
+    if (m){
+      if (!title && m.title)  $('#f-title').value = title = m.title;
+      if (!author && m.author) $('#f-author').value = author = m.author;
+      if (!$('#f-pages').value && m.pages) $('#f-pages').value = m.pages;
+    }
+    detectFormCountry(author, title);                    // en paralelo: país del autor/a en Wikidata
+    if (isbn && !m && !title){ coverStatus('No se ha encontrado ese ISBN. Escribe el título y vuelve a pulsar «Buscar ediciones».'); return; }
+    // Con solo el ISBN: ahora que hay título, buscar más ediciones y premios (Google Books, Open Library y Wikidata)
+    if (isbn && !hadTitle && title){
+      coverStatus(`Encontrado: «${title}». Buscando más ediciones…`);
+      const more = await searchCovers(title, author).catch(() => null);
+      if (run !== searchRun) return;
+      if (more){
+        const urls = new Set(res.covers.map(c => c.url));
+        res = { ...res, covers: [...res.covers, ...more.covers.filter(c => !urls.has(c.url))].slice(0, 30),
+                awards: mergeAwards(res.awards, more.awards), checked: res.checked || more.checked };
+      }
+    }
+    formAwards = mergeAwards(formAwards, res.awards); awardsSearched = res.checked || res.awards.length > 0; paintAwards();
+    const prize = res.awards.length ? ` · Premio detectado: ${res.awards.join(', ')}` : '';
+    showEditions(res.covers, prize);
+  } catch(e){ if (run === searchRun) coverStatus('No hay conexión a internet. Puedes subir una foto de tu ejemplar.'); }
+}
+function showEditions(list, extra = ''){
+  if (!list.length){ coverStatus('No se han encontrado portadas. Prueba con otro título, sube una imagen o pega una URL.' + extra); return; }
+  const n = list.length;
+  coverStatus(`${n === 1 ? '1 edición' : n + ' ediciones'} · elige la tuya con un clic` + extra);
+  $('#coverResults').innerHTML = list.map((c, i) => `
+    <button type="button" class="ed" data-i="${i}" title="${esc(c.label)}">
+      <span class="ed-img"><img src="${esc(c.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer"
+        onload="if(this.naturalWidth<20)this.closest('.ed').remove()" onerror="this.closest('.ed').remove()"></span>
+      ${c.mine ? '<span class="ed-mine">Tu ISBN</span>' : ''}
+      <span class="ed-cap">${esc(c.label)}</span>
+    </button>`).join('');
+  $('#coverResults').onclick = e => {
+    const btn = e.target.closest('.ed'); if (!btn) return;
+    document.querySelectorAll('#coverResults .ed').forEach(b => b.classList.toggle('on', b === btn));
+    setCover(list[btn.dataset.i].url);
+  };
+}
+function paintCover(){
+  const t = $('#coverThumb');
+  t.style.backgroundImage = formCover ? `url("${formCover}")` : '';
+  t.classList.toggle('has', !!formCover);
+  $('#f-cover').value = formCover.startsWith('data:') ? '' : formCover;
+  $('#f-cover').placeholder = formCover.startsWith('data:') ? 'Imagen subida desde tu ordenador' : '…o pega aquí la URL de una imagen';
+}
+async function setCover(url){
+  formCover = url || ''; paintCover();
+  if (formCover && !colorTouched){
+    const c = await colorFromImage(hiRes(formCover).pop());
+    if (c && !colorTouched){ formColor = c; paintSwatches(); }
+  }
+}
+
+function openForm(id = null){
+  editingId = id;
+  const b = id ? books.find(x => x.id === id) : null;
+  $('#formTitle').textContent = b ? 'Editar libro' : 'Nuevo libro';
+  searchRun++;                                       // descarta búsquedas de un formulario anterior
+  $('#f-isbn').value   = b?.isbn   || '';
+  $('#f-title').value  = b?.title  || '';
+  $('#f-author').value = b?.author || '';
+  $('#f-date').value   = b?.date   || '';
+  $('#f-genre').value  = b?.genre  || '';
+  $('#f-pages').value  = b?.pages  || '';
+  $('#f-quote').value  = b?.quote  || '';
+  $('#f-notes').value  = b?.notes  || '';
+  formRating = b?.rating || 0;
+  formStatus = b?.status || '';
+  formAwards = [...(b?.awards || [])]; awardsSearched = false; paintAwards();
+  formColor  = b?.color  || PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  $('#err').textContent = '';
+  formCover = b?.cover || ''; colorTouched = !!b; paintCover();
+  coverStatus(''); $('#coverResults').innerHTML = '';
+  paintStatus(); paintRating(); paintSwatches();
+  $('#modal').classList.add('show'); $('#modal').setAttribute('aria-hidden', 'false');
+  $('#f-country').value = b?.country || ''; formCountry = { name: '', code: '' }; fillCountryList();
+  setTimeout(() => $('#f-title').focus(), 120);
+}
+function closeForm(){ if (scanOpen()) closeScanner(); $('#modal').classList.remove('show'); $('#modal').setAttribute('aria-hidden', 'true'); editingId = null; }
+
+$('#form').addEventListener('submit', e => {
+  e.preventDefault();
+  const title = $('#f-title').value.trim(), author = $('#f-author').value.trim();
+  if (!title || !author){ $('#err').textContent = 'El título y el autor son obligatorios.'; return; }
+  const isbn = toISBN13($('#f-isbn').value);
+  if ($('#f-isbn').value.trim() && !isbn){ $('#err').textContent = 'El ISBN no es válido: corrígelo o déjalo vacío.'; return; }
+  const data = {
+    title, author, isbn,
+    date:  $('#f-date').value,
+    genre: $('#f-genre').value.trim(),
+    pages: parseInt($('#f-pages').value, 10) || null,
+    cover: formCover,
+    quote: $('#f-quote').value.trim(),
+    notes: $('#f-notes').value.trim(),
+    rating: formRating, color: formColor,
+    status: formStatus
+  };
+  const wasEditing = editingId;
+  const prev = wasEditing ? books.find(x => x.id === wasEditing) : null;
+  if (awardsSearched){ data.awards = formAwards; data.awardsChecked = true; }
+  else if (!prev || prev.title !== title || prev.author !== author){ data.awards = []; data.awardsChecked = false; }   // se analiza en segundo plano
+  // País del autor/a: lo escrito manda; si cambió el autor/a y el país es el de antes, se vuelve a detectar
+  let country = $('#f-country').value.trim();
+  const sameAuthor = prev && prev.author === author;
+  if (prev && !sameAuthor && country === prev.country) country = '';
+  data.country = country;
+  data.countryCode = !country ? '' : (prev && country === prev.country ? prev.countryCode : (formCountry.name === country ? formCountry.code : countryCode(country)));
+  data.countryChecked = !!country || !!(sameAuthor && prev.countryChecked);
+  if (wasEditing){ const i = books.findIndex(x => x.id === wasEditing); books[i] = { ...books[i], ...data }; }
+  else books.push({ id: 'b' + Date.now(), ...data });
+  save(); closeForm(); renderShelves();
+  toast(wasEditing ? 'Cambios guardados' : `«${title}» añadido a tu estantería`);
+  if (wasEditing && currentId === wasEditing){ buildBook(books.find(x => x.id === wasEditing)); openPanel(); }
+  backgroundScans();
+});
+
+/* =========================================================
+   EVENTOS GLOBALES
+   ========================================================= */
+$('#addBtn').onclick = () => openForm();
+$('#cancelBtn').onclick = closeForm;
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeForm(); });
+$('#stageClose').onclick = closeStage;
+$('#stage').addEventListener('click', e => { if (e.target.id === 'stage') closeStage(); });
+$('#book3d').addEventListener('click', openPanel);
+$('#book3d').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openPanel(); } });
+$('#scrim').onclick = closePanel;
+$('#resetBtn').onclick = () => {
+  if (!confirm('¿Volver a la biblioteca de ejemplo? Se perderán los cambios guardados en este navegador.')) return;
+  books = withStatus(clone(DEFAULT_BOOKS)); try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  setDirty(false); renderShelves(); toast('Biblioteca restablecida');
+};
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (scanOpen()) closeScanner();
+  else if ($('#cardModal').classList.contains('show')) closeCard();
+  else if ($('#passportModal').classList.contains('show')) closePassport();
+  else if ($('#importModal').classList.contains('show')) closeImport();
+  else if ($('#modal').classList.contains('show')) closeForm();
+  else if (panelOpen()) closePanel();
+  else if ($('#stage').classList.contains('show')) closeStage();
+});
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(renderShelves, 120); });
+
+$('#saveFileBtn').onclick = saveToFile;
+$('#mysteryBtn').onclick = mysteryBook;
+$('#passportBtn').onclick = openPassport;
+$('#passportClose').onclick = closePassport;
+$('#passportModal').addEventListener('click', e => {
+  if (e.target.id === 'passportModal') return closePassport();
+  const s = e.target.closest('.stamp'); if (s) filterByCountry(s.dataset.c);
+});
+$('#filterClear').onclick = () => { countryFilter = ''; renderShelves(); };
+$('#cardClose').onclick = closeCard;
+$('#cardModal').addEventListener('click', e => { if (e.target.id === 'cardModal') closeCard(); });
+$('#cardDownload').onclick = () => { if (!cardFile) return; download(cardFile.name, cardFile, 'image/png'); toast('Tarjeta descargada'); };
+$('#cardShare').onclick = () => { if (cardFile) navigator.share({ files: [cardFile], title: 'Mi biblioteca' }).catch(() => {}); };
+$('#exportBtn').onclick =() => { exportLibrary(); toast(`Biblioteca exportada (${books.length} libros)`); };
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) readImport(f); e.target.value = ''; });
+$('#impMerge').onclick = () => applyImport('merge');
+$('#impReplace').onclick = () => applyImport('replace');
+$('#impCancel').onclick = closeImport;
+$('#importModal').addEventListener('click', e => { if (e.target.id === 'importModal') closeImport(); });
+$('#bulkCoversBtn').onclick = async () => {
+  const pending = books.filter(b => !b.cover);
+  if (!pending.length){ toast('Todos tus libros ya tienen portada'); return; }
+  let found = 0;
+  for (let k = 0; k < pending.length; k++){
+    const b = pending[k];
+    toast(`Buscando portadas… ${k + 1}/${pending.length}`, 60000);
+    try {
+      const r = await searchCovers(b.title, b.author);
+      if (r.covers.length){ b.cover = r.covers[0].url; found++; }
+      if (!b.awardsChecked && r.checked){ b.awards = mergeAwards(b.awards, r.awards); b.awardsChecked = true; }
+    }
+    catch(e){ toast('No hay conexión a internet'); return; }
+  }
+  if (found){ save(); renderShelves(); }
+  setTimeout(backgroundScans, 5200);
+  toast(found ? `Portadas añadidas: ${found} de ${pending.length}. Si alguna no es tu edición, cámbiala en «Editar».`
+              : 'No se han encontrado portadas', 5000);
+};
+window.addEventListener('beforeunload', e => { if (dirty && !storageOK){ e.preventDefault(); e.returnValue = ''; } });
+
+setupFormControls();
+renderShelves();
+if (new URLSearchParams(location.search).get('accion') === 'nuevo') openForm();   // atajo «Añadir libro» de la app instalada
+setTimeout(backgroundScans, 1500);                // premios y países de libros aún no analizados
+window.addEventListener('online', backgroundScans);
+try { setDirty(localStorage.getItem(DIRTY_KEY) === '1'); localStorage.setItem(STORAGE_KEY + '-test', '1'); localStorage.removeItem(STORAGE_KEY + '-test'); }
+catch(e){ storageOK = false; toast('Este navegador no guarda datos locales: usa «Guardar en archivo» tras añadir libros', 5000); }
+</script></body></html>
