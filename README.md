@@ -58,6 +58,23 @@ Elige al azar uno de los libros **Pendientes** con una animación de barajado so
   - **Reemplazar:** descarga antes una copia de la biblioteca actual.
 - Los datos importados se sanean (URLs de portada, colores, fechas, valoraciones) y antes de importar se guarda una copia en `localStorage`.
 
+### Cuenta y sincronización en la nube (Supabase)
+- Botón **Cuenta** en la cabecera para crear una cuenta con email y contraseña, iniciar sesión y cerrar sesión. Un punto de color indica el estado: sincronizado, pendiente o error.
+- **Sin sesión**, la app funciona igual que siempre en modo invitado con `localStorage`.
+- **Offline-first:** cada cambio se guarda primero en el dispositivo y se sube en segundo plano. Sin conexión, los cambios esperan y se envían al recuperarla, al volver a la app o con **Sincronizar ahora**.
+- **Al iniciar sesión** en un dispositivo nuevo se descarga la biblioteca de la cuenta y se integra con lo que hubiera en modo invitado. El libro de ejemplo sin modificar no se sube.
+- **Tiempo real:** los cambios hechos en otro dispositivo llegan al instante (Supabase Realtime).
+- **Conflictos:** si el mismo libro cambia en dos sitios, gana la versión más reciente. Los borrados se propagan a todos los dispositivos.
+- **Dispositivo compartido:** si en él había libros de otra cuenta, no se mezclan. **Cerrar sesión y borrar de este dispositivo** elimina la copia local, pero no la de la nube.
+
+**Configuración** (una sola vez):
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. En *SQL Editor*, ejecuta [`supabase/schema.sql`](supabase/schema.sql). Crea la tabla `libros` con seguridad por filas (cada usuario solo ve sus libros) y la activa para tiempo real.
+3. En *Authentication → URL Configuration*, añade la URL de la app (p. ej. `https://luciaparvaz.github.io/mi-biblioteca/`) como *Site URL* / *Redirect URL*, para que funcione el enlace del email de confirmación.
+4. En *Project Settings → API*, copia la **Project URL** y la clave **anon public** en la constante `SUPABASE` de `index.html`.
+
+La clave *anon* es pública por diseño; la protección la dan las políticas RLS del esquema. **Nunca pongas la clave `service_role` en la app.** Mientras `SUPABASE` tenga los valores de ejemplo, el botón Cuenta solo informa de que la sincronización no está configurada.
+
 ### Texto
 Corrector ortográfico (`spellcheck`, idioma español) en la frase favorita y las notas, y un botón **Limpiar formato** que quita los espacios dobles y los espacios antes de la puntuación, pone mayúsculas al inicio de frase, convierte las comillas a «» y `...` a «…». Se puede deshacer con Ctrl+Z.
 
@@ -86,10 +103,11 @@ python -m http.server 8000
 | Manifest e iconos | Guardados al instalar (caché primero) |
 | Google Fonts | Respuesta desde caché y actualización en segundo plano |
 | Portadas | Caché primero, máximo 200 imágenes |
-| html5-qrcode (cdnjs) | Respuesta desde caché y actualización en segundo plano |
+| html5-qrcode (cdnjs) y supabase-js (jsDelivr) | Respuesta desde caché y actualización en segundo plano |
 | Google Books, Open Library, Wikidata | Siempre en red (búsquedas, nunca en caché) |
+| Supabase (cuenta, datos, tiempo real) | Siempre en red: la caché no distingue usuarios ni sesiones; el modo sin conexión lo da `localStorage` |
 
-Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-worker.js` (actualmente `v9`) para que las instalaciones descarguen la nueva versión.
+Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-worker.js` (actualmente `v11`) para que las instalaciones descarguen la nueva versión.
 
 ## Estructura del proyecto
 
@@ -103,6 +121,8 @@ Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-w
 │   ├── icon-512.png
 │   ├── icon-maskable-512.png  # Icono adaptable (Android)
 │   └── apple-touch-icon.png   # Icono para iOS
+├── supabase/
+│   └── schema.sql             # Tabla «libros», políticas RLS y tiempo real (opcional)
 ├── .github/workflows/
 │   └── static.yml             # Despliegue automático en GitHub Pages desde main
 └── README.md
@@ -113,12 +133,14 @@ Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-w
 - **HTML, CSS y JavaScript sin frameworks**, en un solo archivo y sin dependencias de compilación.
 - **APIs del navegador:** Service Worker y Cache API, Web App Manifest, `localStorage`, Canvas 2D, File System Access API (`showSaveFilePicker`), Web Share API, `getUserMedia` y `BarcodeDetector`, CSS 3D transforms.
 - **html5-qrcode 2.3.8:** lector de códigos de barras, solo en navegadores sin `BarcodeDetector`.
+- **Supabase (supabase-js 2.45.4):** autenticación por email, base de datos Postgres con RLS y Realtime. Opcional; se carga solo si está configurado.
 - **Fuentes:** Cormorant Garamond e Inter (Google Fonts).
 - **Datos abiertos y gratuitos, sin claves:** Google Books API, Open Library API y Wikidata (SPARQL).
 - **GitHub Actions + GitHub Pages** para el despliegue.
 
 ## Limitaciones conocidas
 
-- Los libros se guardan en el navegador de cada dispositivo. Para pasarlos a otro dispositivo, usa **Exportar** / **Importar**.
+- Sin cuenta, los libros se guardan en el navegador de cada dispositivo. Para pasarlos a otro, usa **Exportar** / **Importar** o inicia sesión con Supabase configurado.
+- La sincronización usa la hora de cada dispositivo para decidir qué versión es más reciente; si un reloj va muy desfasado, puede ganar la versión equivocada.
 - Google Books sin clave usa una cuota diaria compartida entre todos sus usuarios; cuando se agota, las búsquedas siguen funcionando con Open Library y Wikidata.
 - La detección de premios y países depende de lo que esté registrado en Wikidata.

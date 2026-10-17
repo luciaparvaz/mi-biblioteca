@@ -23,22 +23,23 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Inter:wght@300;400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;family=Inter:wght@300;400;500&amp;display=swap" rel="stylesheet">
 <style>
 /* =========================================================
    1. VARIABLES DE DISEÑO
    ========================================================= */
 :root{
-  --bg:#f5f3ef;
-  --paper:#fbfaf8;
-  --ink:#2e2c29;
-  --muted:#8b877f;
-  --line:#e5e1da;
-  --shelf:#ece8e1;
-  --shelf-edge:#dcd7ce;
-  --shadow-s:0 1px 2px rgba(40,35,30,.06),0 2px 6px rgba(40,35,30,.05);
-  --shadow-m:0 12px 32px rgba(40,35,30,.10),0 3px 10px rgba(40,35,30,.06);
-  --shadow-l:0 40px 80px -20px rgba(40,35,30,.28),0 18px 36px -18px rgba(40,35,30,.22);
+  --bg:#f1ede5;              /* papel antiguo, un punto más hondo para que destaquen las hojas */
+  --paper:#fbf9f5;
+  --ink:#24221f;
+  --muted:#635e56;           /* textos secundarios: contraste ≈ 5,6:1 sobre el fondo */
+  --line:#d6cfc3;
+  --shelf:#e6dfd2;
+  --shelf-edge:#c9bfaf;
+  --shadow-s:0 1px 1px rgba(40,32,22,.10),0 2px 5px rgba(40,32,22,.08),0 8px 16px -8px rgba(40,32,22,.14);
+  --shadow-m:0 1px 2px rgba(40,32,22,.10),0 6px 14px -4px rgba(40,32,22,.16),0 18px 36px -12px rgba(40,32,22,.22);
+  --shadow-l:0 2px 6px rgba(40,32,22,.12),0 18px 40px -12px rgba(40,32,22,.30),0 44px 90px -24px rgba(40,32,22,.40);
+  --sheet-stack:7px 8px 0 -1px var(--paper),7px 8px 0 0 var(--line),13px 15px 0 -2px #f7f3ec,13px 15px 0 -1px var(--line);
   --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
   --sans:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
   --ease:cubic-bezier(.22,.8,.24,1);
@@ -52,9 +53,49 @@ input,textarea,select{font:inherit;color:inherit}
 /* =========================================================
    2. CABECERA
    ========================================================= */
-.top{max-width:1100px;margin:0 auto;padding:60px 32px 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
-.top h1{font-family:var(--serif);font-weight:500;font-size:46px;letter-spacing:.01em;line-height:1}
-.top p{color:var(--muted);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:12px}
+/* Cabecera editorial centrada */
+.top{max-width:1100px;margin:0 auto;padding:46px 32px 22px;text-align:center}
+.masthead{display:flex;flex-direction:column;align-items:center}
+.mast-kicker{display:flex;align-items:center;gap:14px;font-size:11px;font-weight:500;letter-spacing:.34em;text-transform:uppercase;color:var(--muted)}
+.mast-kicker::before,.mast-kicker::after{content:'';width:38px;height:1px;background:currentColor;opacity:.7}
+.top h1{font-family:var(--serif);font-weight:700;font-size:clamp(50px,9vw,96px);letter-spacing:-.01em;line-height:.92;margin-top:14px;
+  text-shadow:0 1px 0 rgba(255,255,255,.9),0 2px 1px rgba(40,32,22,.16)}
+.mast-rule{width:min(520px,86%);height:5px;margin-top:20px;border-top:2px solid var(--ink);border-bottom:1px solid var(--ink)}
+.top #count{color:var(--muted);font-size:11.5px;font-weight:400;letter-spacing:.2em;text-transform:uppercase;margin-top:12px}
+
+/* Barra de acciones: icono + etiqueta, todas visibles */
+.toolbar{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px;width:max-content;max-width:100%;margin:28px auto 0;padding:6px;
+  background:var(--paper);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow-m),inset 0 1px 0 #fff}
+.tool{position:relative;display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:400;color:var(--ink);
+  transition:background .2s,color .2s,box-shadow .2s}
+.tool svg{width:18px;height:18px;flex:none}
+.tool:hover,.tool[aria-expanded="true"]{background:var(--bg);box-shadow:inset 0 1px 2px rgba(40,32,22,.12)}
+.tool:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tool.primary{background:var(--ink);color:var(--paper);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 1px rgba(0,0,0,.3),0 6px 14px -4px rgba(36,34,31,.5)}
+.tool.primary:hover{background:#3a3631}
+.tool.rolling svg{animation:roll .7s var(--ease) infinite}
+.tool-sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.tool-menu{position:relative}
+.tool.save-btn.dirty::after{top:7px;right:9px}
+.menu{position:absolute;top:calc(100% + 12px);right:0;z-index:25;min-width:258px;padding:6px;text-align:left;
+  background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-l)}
+.menu[hidden]{display:none}
+.menu button{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 14px;border-radius:8px;font-size:14px;font-weight:400;color:var(--ink)}
+.menu button small{font-size:11.5px;font-weight:300;color:var(--muted)}
+.menu button:hover,.menu button:focus-visible{background:var(--bg);outline:none}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 8px}
+
+/* Búsqueda */
+.search-bar{display:flex;align-items:center;gap:10px;width:min(560px,100%);margin:14px auto 0;padding:6px 6px 6px 16px;
+  background:var(--paper);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow-s),inset 0 1px 2px rgba(40,32,22,.06)}
+.search-bar[hidden]{display:none}
+.search-bar svg{width:17px;height:17px;flex:none;color:var(--muted)}
+.search-bar input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:15px;padding:6px 0}
+.search-bar input::-webkit-search-cancel-button{display:none}
+.search-count{font-size:12px;color:var(--muted);white-space:nowrap}
+.search-close{width:32px;height:32px;border-radius:50%;font-size:19px;color:var(--muted);flex:none}
+.search-close:hover{background:var(--bg);color:var(--ink)}
+
 .btn{border:1px solid var(--line);background:var(--paper);padding:10px 20px;border-radius:999px;font-size:13px;letter-spacing:.03em;box-shadow:var(--shadow-s);transition:transform .25s var(--ease),box-shadow .25s var(--ease),background .25s}
 .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-m)}
 .btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
@@ -66,16 +107,28 @@ input,textarea,select{font:inherit;color:inherit}
    3. NIVEL 1 · ESTANTERÍA DE LOMOS
    ========================================================= */
 main{max-width:1100px;margin:0 auto;padding:8px 32px 40px}
-.bookcase{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:36px 36px 14px;box-shadow:var(--shadow-s)}
-.shelf{position:relative;display:flex;align-items:flex-end;gap:5px;min-height:284px;padding:0 14px;margin-bottom:44px}
-.shelf::after{content:'';position:absolute;left:-14px;right:-14px;bottom:-14px;height:14px;background:linear-gradient(var(--shelf),var(--shelf-edge));border-radius:2px;box-shadow:0 8px 14px -8px rgba(40,35,30,.22)}
+.bookcase{background:linear-gradient(180deg,#fcfbf8,#f5f0e7);border:1px solid var(--line);border-radius:10px;padding:36px 36px 14px;
+  box-shadow:var(--shadow-m),inset 0 1px 0 #fff,inset 0 -30px 60px -40px rgba(40,32,22,.12)}
+.shelf{position:relative;display:flex;align-items:flex-end;gap:5px;min-height:284px;padding:0 14px;margin-bottom:46px}
+/* sombra de los libros sobre la balda */
+.shelf::before{content:'';position:absolute;left:-6px;right:-6px;bottom:0;height:12px;background:radial-gradient(ellipse at 50% 100%,rgba(40,32,22,.22),transparent 72%);pointer-events:none}
+/* balda de madera clara con canto y relieve */
+.shelf::after{content:'';position:absolute;left:-16px;right:-16px;bottom:-16px;height:16px;border-radius:2px 2px 3px 3px;
+  background:linear-gradient(180deg,#efe9de 0,var(--shelf) 35%,var(--shelf-edge) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(40,32,22,.10),0 2px 2px rgba(40,32,22,.18),0 12px 18px -8px rgba(40,32,22,.38)}
 .shelf .empty{align-self:center;margin:auto;color:var(--muted);font-family:var(--serif);font-style:italic;font-size:19px}
 
 .spine{position:relative;flex:none;border-radius:2px 2px 1px 1px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 0 12px;
-  box-shadow:inset 2px 0 0 rgba(255,255,255,.35),inset -4px 0 8px rgba(0,0,0,.06),0 1px 2px rgba(40,35,30,.10),0 3px 8px rgba(40,35,30,.06);
+  box-shadow:inset 0 2px 2px -1px rgba(255,255,255,.45),inset 0 -2px 3px -1px rgba(0,0,0,.18),
+    0 1px 1px rgba(40,32,22,.30),2px 3px 6px -1px rgba(40,32,22,.30),7px 10px 16px -8px rgba(40,32,22,.35);
   transition:transform .4s var(--ease),box-shadow .4s var(--ease)}
-.spine::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(90deg,rgba(255,255,255,.18),transparent 30%,transparent 75%,rgba(0,0,0,.05));pointer-events:none}
-.spine:hover,.spine:focus-visible{transform:translateY(-12px);box-shadow:inset 2px 0 0 rgba(255,255,255,.35),inset -4px 0 8px rgba(0,0,0,.06),0 16px 24px -8px rgba(40,35,30,.22);outline:none}
+/* lomo redondeado: luz a la izquierda, sombra a la derecha */
+.spine::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(90deg,rgba(0,0,0,.16) 0,rgba(255,255,255,.30) 9%,rgba(255,255,255,.10) 26%,transparent 50%,rgba(0,0,0,.06) 74%,rgba(0,0,0,.24) 100%)}
+.spine:hover,.spine:focus-visible{transform:translateY(-12px);outline:none;
+  box-shadow:inset 0 2px 2px -1px rgba(255,255,255,.45),inset 0 -2px 3px -1px rgba(0,0,0,.18),
+    0 2px 3px rgba(40,32,22,.22),4px 18px 26px -10px rgba(40,32,22,.45)}
+.spine:focus-visible{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink),4px 18px 26px -10px rgba(40,32,22,.45)}
 .spine .band{width:62%;height:1px;background:currentColor;opacity:.25}
 .spine .t{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--serif);font-size:15px;font-weight:500;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin:10px 0;text-align:center}
 .spine .a{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.65;margin-top:8px}
@@ -111,6 +164,28 @@ main{max-width:1100px;margin:0 auto;padding:8px 32px 40px}
 .stage.mystery{transition-duration:.9s}
 .stage.mystery .book3d{transition-duration:1.5s}
 
+/* Cuenta y sincronización */
+.account-btn{position:relative}
+.sync-dot{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:transparent;box-shadow:0 0 0 2px var(--paper);transition:background .3s}
+.sync-dot.ok{background:#8fa58a}
+.sync-dot.busy{background:#c9b27a;animation:pulse 1s ease-in-out infinite alternate}
+.sync-dot.pending{background:#c9b27a}
+.sync-dot.error{background:#c08a7b}
+@keyframes pulse{to{opacity:.35}}
+.auth-sheet{width:min(440px,100%)}
+.auth-sheet [hidden]{display:none!important}
+.auth-tabs{display:flex;gap:4px;padding:4px;margin-bottom:22px;background:var(--bg);border-radius:999px}
+.auth-tabs button{flex:1;padding:8px 12px;border-radius:999px;font-size:13px;color:var(--muted);transition:background .2s,color .2s}
+.auth-tabs button.on{background:var(--paper);color:var(--ink);box-shadow:var(--shadow-s)}
+#authForm .field{margin-bottom:14px}
+.auth-msg{font-size:13px;min-height:1.2em;color:var(--muted);line-height:1.5}
+.auth-msg.err{color:#a2554a}
+.auth-text{font-size:14.5px;line-height:1.6;color:#4a4742}
+.auth-text b{font-weight:500;color:var(--ink)}
+.auth-sync{font-family:var(--serif);font-style:italic;font-size:17px;color:var(--muted);margin:10px 0 22px}
+.auth-note{font-size:12px;line-height:1.55;color:var(--muted);margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.auth-actions{display:flex;gap:8px;flex-wrap:wrap}
+
 /* Pasaporte literario */
 .passport-sheet{width:min(720px,100%)}
 .pp-kicker{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
@@ -118,7 +193,7 @@ main{max-width:1100px;margin:0 auto;padding:8px 32px 40px}
 .pp-sum{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--muted);margin-bottom:26px}
 .stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:26px 20px;padding:6px 4px 10px}
 .stamp{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:12px;
-  color:var(--sc);background:rgba(255,255,255,.35);mix-blend-mode:multiply;opacity:.9;transform:rotate(var(--rot));transition:transform .35s var(--ease),opacity .35s}
+  color:var(--sc);background:rgba(255,255,255,.35);mix-blend-mode:multiply;opacity:.9;filter:drop-shadow(0 1px 1px rgba(40,32,22,.22)) drop-shadow(0 3px 6px rgba(40,32,22,.10));transform:rotate(var(--rot));transition:transform .35s var(--ease),opacity .35s}
 .stamp::before{content:'';position:absolute;inset:6px;border:1px solid currentColor;border-radius:inherit;opacity:.45;pointer-events:none}
 .stamp.s0{border-radius:50%;border:2px solid currentColor}
 .stamp.s1{border-radius:3px;border:2px dashed currentColor}
@@ -233,11 +308,11 @@ footer button:hover{color:var(--ink)}
 /* =========================================================
    5. NIVEL 3 · FICHA DE LECTURA (panel lateral)
    ========================================================= */
-.scrim{position:fixed;inset:0;z-index:30;background:rgba(46,44,41,.10);opacity:0;pointer-events:none;transition:opacity .45s var(--ease)}
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(36,32,26,.22);opacity:0;pointer-events:none;transition:opacity .45s var(--ease)}
 .scrim.show{opacity:1;pointer-events:auto}
 .panel{position:fixed;top:0;right:0;z-index:31;height:100%;width:min(440px,100%);background:var(--paper);border-left:1px solid var(--line);
-  box-shadow:-24px 0 60px rgba(40,35,30,.08);transform:translateX(102%);transition:transform .6s var(--ease);overflow-y:auto;padding:40px 44px 48px}
-.panel.show{transform:none}
+  box-shadow:none;transform:translateX(102%);transition:transform .6s var(--ease);overflow-y:auto;padding:40px 44px 48px}
+.panel.show{transform:none;box-shadow:-1px 0 0 rgba(255,255,255,.7),-10px 0 24px -8px rgba(40,32,22,.22),-40px 0 80px -20px rgba(40,32,22,.30)}   /* sombra solo con la ficha abierta */
 .p-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px}
 .tag{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:6px 12px;border-radius:999px}
 .p-close{width:36px;height:36px;border-radius:50%;font-size:20px;color:var(--muted);transition:.25s}
@@ -260,9 +335,11 @@ footer button:hover{color:var(--ink)}
 /* =========================================================
    6. FORMULARIO (añadir / editar)
    ========================================================= */
-.modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:20px;background:rgba(46,44,41,.16);opacity:0;pointer-events:none;transition:opacity .35s var(--ease)}
+.modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:20px;background:rgba(36,32,26,.30);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .35s var(--ease)}
 .modal.show{opacity:1;pointer-events:auto}
-.sheet{width:min(560px,100%);max-height:calc(100vh - 40px);overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-l);padding:36px 38px;transform:translateY(12px);transition:transform .45s var(--ease)}
+/* hoja flotante con dos hojas de papel debajo */
+.sheet{width:min(560px,100%);max-height:calc(100vh - 56px);overflow-y:auto;background:var(--paper);border:1px solid var(--line);border-radius:10px;
+  box-shadow:inset 0 1px 0 #fff,var(--sheet-stack),var(--shadow-l);padding:36px 38px;transform:translateY(12px);transition:transform .45s var(--ease)}
 .modal.show .sheet{transform:none}
 .sheet h2{font-family:var(--serif);font-weight:500;font-size:30px;margin-bottom:24px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
@@ -291,8 +368,17 @@ footer button:hover{color:var(--ink)}
    7. ADAPTACIÓN A MÓVIL
    ========================================================= */
 @media (max-width:640px){
-  .top{padding:40px 16px 20px}
-  .top h1{font-size:36px}
+  .top{padding:30px 16px 16px}
+  .mast-kicker{font-size:10px;letter-spacing:.28em}
+  .mast-rule{margin-top:14px}
+  /* barra de acciones como cuadrícula de iconos con etiqueta debajo */
+  .toolbar{display:grid;grid-template-columns:repeat(6,1fr);width:100%;gap:2px;margin-top:20px;padding:5px;border-radius:16px}
+  .tool{flex-direction:column;justify-content:center;gap:4px;padding:9px 2px 7px;font-size:11px;border-radius:12px;width:100%}
+  .tool svg{width:21px;height:21px}
+  .tool-sep{display:none}
+  .tool.save-btn.dirty::after{top:6px;right:calc(50% - 18px)}
+  .menu{right:-4px;min-width:min(258px,calc(100vw - 32px))}
+  :root{--sheet-stack:4px 5px 0 -1px var(--paper),4px 5px 0 0 var(--line)}
   main{padding:8px 16px 32px}
   .bookcase{padding:28px 18px 10px}
   footer{padding:0 16px 40px}
@@ -345,21 +431,56 @@ footer button:hover{color:var(--ink)}
 <body>
 
 <header class="top">
-  <div>
+  <div class="masthead">
+    <p class="mast-kicker">Biblioteca personal</p>
     <h1>Mi biblioteca</h1>
+    <div class="mast-rule" aria-hidden="true"></div>
     <p id="count">—</p>
   </div>
-  <div class="top-actions">
-    <button class="btn quiet icon-btn" id="passportBtn" title="Pasaporte literario: tus lecturas por países" aria-label="Pasaporte literario">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="10.5" r="3.6"/><path d="M8.4 10.5h7.2M12 6.9c1.3 1.4 1.3 5.8 0 7.2M12 6.9c-1.3 1.4-1.3 5.8 0 7.2M9.5 17.5h5"/></svg>
+
+  <nav class="toolbar" aria-label="Acciones de la biblioteca">
+    <button type="button" class="tool primary" id="toolAdd" title="Añadir un libro nuevo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Añadir</span>
     </button>
-    <button class="btn quiet icon-btn" id="mysteryBtn" title="El libro misterioso: el azar elige uno de tus pendientes" aria-label="El libro misterioso: elegir al azar un libro pendiente">
+    <button type="button" class="tool" id="searchBtn" aria-expanded="false" aria-controls="searchBar" title="Buscar por título, autor/a, género o país">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>
+      <span>Buscar</span>
+    </button>
+    <button type="button" class="tool" id="mysteryBtn" title="El libro misterioso: el azar elige uno de tus pendientes" aria-label="Al azar: elegir un libro pendiente">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><g fill="currentColor" stroke="none"><circle cx="8.3" cy="8.3" r="1.25"/><circle cx="15.7" cy="8.3" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="8.3" cy="15.7" r="1.25"/><circle cx="15.7" cy="15.7" r="1.25"/></g></svg>
+      <span>Al azar</span>
     </button>
-    <button class="btn quiet" id="exportBtn" title="Descarga un archivo .json con todos tus libros">Exportar biblioteca</button>
-    <button class="btn quiet" id="importBtn" title="Carga un archivo .json exportado antes">Importar biblioteca</button>
+    <button type="button" class="tool" id="passportBtn" title="Pasaporte literario: tus lecturas por países">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="10.5" r="3.6"/><path d="M8.4 10.5h7.2M12 6.9c1.3 1.4 1.3 5.8 0 7.2M12 6.9c-1.3 1.4-1.3 5.8 0 7.2M9.5 17.5h5"/></svg>
+      <span>Pasaporte</span>
+    </button>
+    <span class="tool-sep" aria-hidden="true"></span>
+    <div class="tool-menu">
+      <button type="button" class="tool save-btn" id="backupBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="backupMenu" title="Copias de seguridad: exportar, importar y guardar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></svg>
+        <span>Copias</span>
+      </button>
+      <div class="menu" id="backupMenu" role="menu" aria-label="Copias de seguridad" hidden="">
+        <button type="button" role="menuitem" id="exportBtn">Exportar biblioteca<small>Descarga un .json con todos tus libros</small></button>
+        <button type="button" role="menuitem" id="importBtn">Importar biblioteca<small>Carga un .json exportado antes</small></button>
+        <hr>
+        <button type="button" role="menuitem" class="save-btn" id="saveFileBtn">Guardar en archivo<small>Escribe tus libros dentro de este HTML</small></button>
+      </div>
+    </div>
+    <button type="button" class="tool account-btn" id="accountBtn" title="Cuenta: inicia sesión para sincronizar tu biblioteca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.8 20c1.2-3.6 4-5.4 7.2-5.4s6 1.8 7.2 5.4"/></svg>
+      <span id="accountLabel">Cuenta</span>
+      <span class="sync-dot" id="syncDot" aria-hidden="true"></span>
+    </button>
     <input type="file" id="importFile" accept=".json,application/json" hidden="">
-    <button class="btn save-btn" id="saveFileBtn" title="Escribe tus libros dentro de este archivo HTML">Guardar en archivo</button>
+  </nav>
+
+  <div class="search-bar" id="searchBar" role="search" hidden="">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>
+    <input type="search" id="searchInput" placeholder="Título, autor/a, género o país…" aria-label="Buscar en tu biblioteca" autocomplete="off">
+    <span class="search-count" id="searchCount" aria-live="polite"></span>
+    <button type="button" class="search-close" id="searchClose" aria-label="Cerrar búsqueda">×</button>
   </div>
 </header>
 
@@ -480,6 +601,42 @@ footer button:hover{color:var(--ink)}
   </form>
 </div>
 
+<!-- Cuenta y sincronización -->
+<div class="modal" id="authModal" aria-hidden="true">
+  <div class="sheet auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <p class="pp-kicker">Mi biblioteca</p>
+    <h2 id="authTitle">Cuenta</h2>
+
+    <div id="authOff" hidden="">
+      <p class="auth-text">La sincronización en la nube aún no está configurada en esta versión de la app. Tu biblioteca se guarda en este dispositivo (modo invitado).</p>
+    </div>
+
+    <form id="authForm" hidden="" novalidate="">
+      <div class="auth-tabs" role="tablist">
+        <button type="button" role="tab" class="on" data-mode="login" aria-selected="true">Iniciar sesión</button>
+        <button type="button" role="tab" data-mode="signup" aria-selected="false">Crear cuenta</button>
+      </div>
+      <div class="field"><label for="authEmail">Email</label><input type="email" id="authEmail" autocomplete="email" required=""></div>
+      <div class="field"><label for="authPass">Contraseña</label><input type="password" id="authPass" autocomplete="current-password" minlength="6" required=""></div>
+      <p class="auth-msg" id="authMsg" role="status" aria-live="polite"></p>
+      <div class="actions"><button type="submit" class="btn primary" id="authSubmit">Entrar</button></div>
+      <p class="auth-note">Sin cuenta, tu biblioteca se guarda solo en este dispositivo (modo invitado). Al iniciar sesión, tus libros se suben a tu cuenta y se sincronizan con tus otros dispositivos.</p>
+    </form>
+
+    <div id="authIn" hidden="">
+      <p class="auth-text">Sesión iniciada como <b id="authWho"></b></p>
+      <p class="auth-sync" id="authSync"></p>
+      <div class="auth-actions">
+        <button type="button" class="btn" id="syncNowBtn">Sincronizar ahora</button>
+        <button type="button" class="btn quiet" id="logoutBtn">Cerrar sesión</button>
+        <button type="button" class="btn quiet danger" id="logoutWipeBtn" title="Para dispositivos compartidos: tus libros siguen en la nube">Cerrar sesión y borrar de este dispositivo</button>
+      </div>
+    </div>
+
+    <div class="actions"><button type="button" class="btn quiet" id="authClose">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- Pasaporte literario -->
 <div class="modal" id="passportModal" aria-hidden="true">
   <div class="sheet passport-sheet" role="dialog" aria-modal="true" aria-labelledby="passportTitle">
@@ -595,10 +752,33 @@ function load(){
   return withStatus(clone(DEFAULT_BOOKS));
 }
 let storageOK = true;
-function save(){
+function save(opts = {}){
+  if (!opts.fromSync) stampChanges();               // marca qué libros cambiaron y cuáles se borraron
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(books)); storageOK = true; }
   catch(e){ storageOK = false; }
   setDirty(true);
+  if (!opts.fromSync) scheduleSync();
+}
+
+/* ---------- Registro de cambios para la sincronización (última escritura gana) ----------
+   Cada libro guarda «updatedAt» (ms) cuando cambia su contenido; los borrados quedan
+   anotados en TOMB_KEY hasta que la nube los recibe. */
+const TOMB_KEY = STORAGE_KEY + '-borrados';
+const memo = new Map();                              // id → huella del contenido ya registrado
+let tombs = (() => { try { return JSON.parse(localStorage.getItem(TOMB_KEY)) || {}; } catch(e){ return {}; } })();
+const bookPrint = b => { const { updatedAt, ...rest } = b; return JSON.stringify(rest); };
+function initMemo(){ memo.clear(); books.forEach(b => memo.set(b.id, bookPrint(b))); }
+function saveTombs(){ try { localStorage.setItem(TOMB_KEY, JSON.stringify(tombs)); } catch(e){} }
+function stampChanges(){
+  const now = Date.now(), seen = new Set();
+  books.forEach(b => {
+    const p = bookPrint(b);
+    if (memo.get(b.id) !== p){ b.updatedAt = now; memo.set(b.id, p); }
+    if (tombs[b.id] && (b.updatedAt || 0) >= tombs[b.id]) delete tombs[b.id];   // vuelve a existir
+    seen.add(b.id);
+  });
+  for (const id of [...memo.keys()]) if (!seen.has(id)){ memo.delete(id); tombs[id] = now; }
+  saveTombs();
 }
 
 /* ---------- Avisos ---------- */
@@ -614,8 +794,9 @@ let dirty = false;
 function setDirty(v){
   dirty = v;
   try { v ? localStorage.setItem(DIRTY_KEY, '1') : localStorage.removeItem(DIRTY_KEY); } catch(e){}
-  const btn = document.getElementById('saveFileBtn');
+  const btn = document.getElementById('saveFileBtn'), menuBtn = document.getElementById('backupBtn');
   if (btn){ btn.classList.toggle('dirty', v); btn.title = v ? 'Hay cambios sin escribir en el archivo HTML' : 'Escribe tus libros dentro de este archivo HTML'; }
+  if (menuBtn) menuBtn.classList.toggle('dirty', v);   // el aviso también se ve con el menú cerrado
 }
 
 /* ---------- Guardar en archivo: reescribe el listado dentro del propio HTML ---------- */
@@ -761,6 +942,7 @@ function applyImport(mode){
 }
 
 let books = load();
+initMemo();
 let currentId = null;
 let editingId = null;
 
@@ -776,7 +958,10 @@ function renderShelves(){
 
   // Filtro del pasaporte: solo los libros de autores/as de ese país
   if (countryFilter && !books.some(b => b.country === countryFilter)) countryFilter = '';
-  const shown = countryFilter ? books.filter(b => b.country === countryFilter) : books;
+  let shown = countryFilter ? books.filter(b => b.country === countryFilter) : books;
+  const q = normTxt(searchQuery);                    // búsqueda: título, autor/a, género o país
+  if (q) shown = shown.filter(b => normTxt([b.title, b.author, b.genre, b.country].join(' ')).includes(q));
+  $('#searchCount').textContent = q ? `${shown.length} de ${books.length}` : '';
   $('#filterBar').hidden = !countryFilter;
   if (countryFilter) $('#filterText').innerHTML = `Pasaporte · <b>${esc(countryFilter)}</b> — ${shown.length === 1 ? '1 libro' : shown.length + ' libros'}`;
 
@@ -792,7 +977,7 @@ function renderShelves(){
   shelves.forEach((row, i) => {
     const shelf = document.createElement('div');
     shelf.className = 'shelf';
-    if (!books.length && i === 0) shelf.insertAdjacentHTML('beforeend', '<p class="empty">Tu estantería está esperando su primer libro.</p>');
+    if (!shown.length && i === 0) shelf.insertAdjacentHTML('beforeend', `<p class="empty">${books.length ? `Ningún libro coincide con «${esc(searchQuery.trim())}».` : 'Tu estantería está esperando su primer libro.'}</p>`);
     row.forEach(b => shelf.appendChild(b.__add ? addSlotEl() : spineEl(b)));
     if (i === 0 && shown.length) shelf.insertAdjacentHTML('beforeend', '<div class="deco" aria-hidden="true"><span class="stem"></span><span class="stem"></span><span class="stem"></span><span class="vase"></span></div>');
     bc.appendChild(shelf);
@@ -1342,7 +1527,7 @@ async function detectFormCountry(author, title){
 }
 
 /* Vista del pasaporte */
-let countryFilter = '';
+let countryFilter = '', searchQuery = '';
 function renderPassport(){
   const groups = new Map();
   books.forEach(b => {
@@ -1423,6 +1608,235 @@ async function mysteryBook(){
     bc.classList.remove('shuffling'); spines.forEach(s => s.classList.remove('cand', 'lit', 'chosen'));
     $('#mysteryBtn').classList.remove('rolling'); mysteryBusy = false;
   }
+}
+
+/* =========================================================
+   CUENTA Y SINCRONIZACIÓN (Supabase) · offline-first
+   Sin configurar, o sin sesión, la app funciona igual en modo invitado.
+   La clave «anon» es pública por diseño: la seguridad la da RLS (supabase/schema.sql).
+   ========================================================= */
+const SUPABASE = {
+  url: 'https://TU_PROYECTO.supabase.co',
+  anonKey: 'tu_clave_anon_public_aqui',
+  lib: 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js',
+  sri: 'sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o'
+};
+const cloudConfigured = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE.url) && SUPABASE.anonKey.length > 40 && !/^tu_/i.test(SUPABASE.anonKey);
+const SYNC_KEY = STORAGE_KEY + '-sync';             // { owner: id de la cuenta cuyos libros hay en este dispositivo, last: ms }
+const DEMO_ID = 'demo1';
+let sb = null, session = null, channel = null;
+let syncing = false, syncAgain = false, syncTimer = 0;
+const syncInfo = { state: '', last: 0, msg: '', remote: 0 };
+
+function loadSyncState(){ try { return JSON.parse(localStorage.getItem(SYNC_KEY)) || {}; } catch(e){ return {}; } }
+function saveSyncState(s){ try { localStorage.setItem(SYNC_KEY, JSON.stringify(s)); } catch(e){} }
+
+function loadSupabase(){
+  return new Promise((resolve, reject) => {
+    if (window.supabase) return resolve(window.supabase);
+    const s = document.createElement('script');
+    s.src = SUPABASE.lib; s.integrity = SUPABASE.sri; s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(window.supabase);
+    s.onerror = () => { s.remove(); reject(new Error('lib')); };
+    document.head.appendChild(s);
+  });
+}
+async function initCloud(){
+  updateAccountUI();
+  if (!cloudConfigured) return;
+  try {
+    const lib = await loadSupabase();
+    sb = lib.createClient(SUPABASE.url, SUPABASE.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    sb.auth.onAuthStateChange((event, s) => {
+      const was = session && session.user.id;
+      session = s;
+      updateAccountUI();
+      if (s && s.user.id !== was){ startRealtime(); syncNow(); }
+      if (!s) stopRealtime();
+    });
+  } catch(e){ setSync('error', 'No se ha podido cargar la conexión con la nube (¿sin conexión?)'); }
+}
+
+/* El libro de ejemplo cuenta como «sin tocar» si la persona no ha cambiado nada de lo que se escribe a mano
+   (premios o país detectados automáticamente no cuentan) */
+function isPristineDemo(b){
+  const d = DEFAULT_BOOKS.find(x => x.id === DEMO_ID);
+  return !!d && b.id === DEMO_ID && ['title', 'author', 'notes', 'quote', 'status', 'rating', 'date', 'cover', 'genre', 'pages', 'isbn']
+    .every(k => (b[k] || '') === (d[k] || ''));
+}
+
+/* Lo que viaja a la nube: el libro limpio + su hora de modificación */
+const wireBook = b => ({ ...cleanBook(b), id: b.id, updatedAt: b.updatedAt || 1 });
+function applyRemote(row){
+  const i = books.findIndex(x => x.id === row.id);
+  if (row.deleted){
+    if (i >= 0){ books.splice(i, 1); memo.delete(row.id); }
+    delete tombs[row.id];
+    return i >= 0;
+  }
+  const b = cleanBook({ ...row.data, id: row.id }); if (!b) return false;
+  b.updatedAt = row.modified;
+  if (i >= 0) books[i] = b; else books.push(b);
+  memo.set(b.id, bookPrint(b)); delete tombs[b.id];
+  return true;
+}
+function afterRemoteChanges(){
+  saveTombs(); save({ fromSync: true }); renderShelves();
+  if (currentId){
+    const b = books.find(x => x.id === currentId);
+    if (!b) closeStage(); else if (panelOpen()) openPanel();
+  }
+}
+
+function scheduleSync(){
+  if (!session) return;
+  setSync('pending');
+  clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 1500);
+}
+async function syncNow(){
+  if (!sb || !session) return;
+  if (!navigator.onLine){ setSync('pending', 'Sin conexión: se sincronizará al volver'); return; }
+  if (syncing){ syncAgain = true; return; }
+  syncing = true; setSync('busy');
+  try {
+    const uid = session.user.id, st = loadSyncState();
+    // En este dispositivo había libros de OTRA cuenta: no se mezclan, se sustituyen por los de esta
+    if (st.owner && st.owner !== uid){ books = []; initMemo(); tombs = {}; saveTombs(); }
+    const { data: rows, error } = await sb.from('libros').select('id,data,deleted,modified').eq('user_id', uid);
+    if (error) throw error;
+    const remote = new Map(rows.map(r => [r.id, r]));
+    // El libro de ejemplo sin tocar no se sube si la cuenta ya tiene libros
+    const demo = books.find(isPristineDemo);
+    if (demo && [...remote.values()].some(r => !r.deleted)){ books = books.filter(b => b !== demo); memo.delete(DEMO_ID); }
+
+    const push = []; let changed = false;
+    const ids = new Set([...books.map(b => b.id), ...Object.keys(tombs), ...remote.keys()]);
+    for (const id of ids){
+      const L = books.find(b => b.id === id), R = remote.get(id);
+      if (L && !R && isPristineDemo(L)) continue;                 // el ejemplo sin tocar nunca se sube
+      const lt = L ? (L.updatedAt || 1) : (tombs[id] || 0), rt = R ? R.modified : 0;
+      if (lt === rt) continue;                                    // misma versión
+      if (lt > rt){                                               // gana la copia local
+        if (L) push.push({ user_id: uid, id, data: wireBook(L), deleted: false, modified: lt });
+        else if (R && !R.deleted) push.push({ user_id: uid, id, data: R.data, deleted: true, modified: lt });
+        else delete tombs[id];
+      } else if (applyRemote(R)) changed = true;                  // gana la nube
+    }
+    if (push.length){
+      const { error: e2 } = await sb.from('libros').upsert(push, { onConflict: 'user_id,id' });
+      if (e2) throw e2;
+      push.forEach(p => { if (p.deleted) delete tombs[p.id]; });
+    }
+    saveTombs();
+    saveSyncState({ owner: uid, last: Date.now() });
+    if (changed || st.owner !== uid) afterRemoteChanges(); else save({ fromSync: true });
+    syncInfo.remote = books.length;                  // tras sincronizar, la nube y el dispositivo coinciden
+    setSync('ok');
+  } catch(e){
+    setSync('error', 'No se ha podido sincronizar: ' + (e && e.message ? e.message : 'error de conexión'));
+  } finally {
+    syncing = false;
+    if (syncAgain){ syncAgain = false; setTimeout(syncNow, 300); }
+  }
+}
+
+/* Tiempo real: cambios hechos en otro dispositivo */
+function startRealtime(){
+  stopRealtime();
+  if (!sb || !session) return;
+  const uid = session.user.id;
+  channel = sb.channel('libros-' + uid)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'libros', filter: `user_id=eq.${uid}` }, payload => {
+      const R = payload.new; if (!R || !R.id) return;
+      const L = books.find(b => b.id === R.id), lt = L ? (L.updatedAt || 1) : (tombs[R.id] || 0);
+      if (R.modified > lt && applyRemote(R)){ afterRemoteChanges(); setSync('ok'); }
+    })
+    .subscribe();
+}
+function stopRealtime(){ if (channel && sb){ sb.removeChannel(channel); } channel = null; }
+
+/* ---------- Interfaz ---------- */
+function setSync(state, msg = ''){
+  syncInfo.state = state; syncInfo.msg = msg;
+  if (state === 'ok') syncInfo.last = Date.now();
+  updateAccountUI();
+}
+function agoText(ms){
+  const s = Math.round((Date.now() - ms) / 1000);
+  return s < 45 ? 'hace un momento' : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`;
+}
+function updateAccountUI(){
+  const dot = $('#syncDot'), btn = $('#accountBtn');
+  dot.className = 'sync-dot' + (session ? ' ' + (syncInfo.state || 'pending') : '');
+  $('#accountLabel').textContent = cloudConfigured && !session ? 'Entrar' : 'Cuenta';
+  btn.title = !cloudConfigured ? 'Cuenta (sincronización no configurada)' : session ? `Cuenta: ${session.user.email}` : 'Cuenta: inicia sesión para sincronizar tu biblioteca';
+  $('#authOff').hidden = cloudConfigured;
+  $('#authForm').hidden = !cloudConfigured || !!session;
+  $('#authIn').hidden = !session;
+  if (session){
+    $('#authWho').textContent = session.user.email;
+    $('#authSync').textContent =
+      syncInfo.state === 'busy' ? 'Sincronizando…'
+      : syncInfo.state === 'error' ? syncInfo.msg
+      : syncInfo.state === 'pending' ? (syncInfo.msg || 'Cambios pendientes de subir…')
+      : syncInfo.last ? `Sincronizado ${agoText(syncInfo.last)} · ${syncInfo.remote === 1 ? '1 libro' : syncInfo.remote + ' libros'} en la nube`
+      : 'Conectando…';
+  }
+}
+let authMode = 'login';
+function setAuthMode(m){
+  authMode = m;
+  document.querySelectorAll('.auth-tabs button').forEach(b => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  $('#authSubmit').textContent = m === 'login' ? 'Entrar' : 'Crear cuenta';
+  $('#authPass').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+  authMsg('');
+}
+function authMsg(t, err = false){ $('#authMsg').textContent = t; $('#authMsg').classList.toggle('err', err); }
+function authError(e){
+  const m = (e && e.message) || '';
+  return /invalid login/i.test(m) ? 'Email o contraseña incorrectos.'
+    : /not confirmed/i.test(m) ? 'Confirma primero tu email con el enlace que te enviamos.'
+    : /already registered|already exists/i.test(m) ? 'Ya existe una cuenta con ese email: inicia sesión.'
+    : /password/i.test(m) ? 'La contraseña debe tener al menos 6 caracteres.'
+    : /fetch|network/i.test(m) ? 'Sin conexión. Inténtalo cuando vuelvas a tener internet.'
+    : m || 'No se ha podido completar.';
+}
+function openAccount(){ updateAccountUI(); $('#authModal').classList.add('show'); $('#authModal').setAttribute('aria-hidden', 'false'); }
+function closeAccount(){ $('#authModal').classList.remove('show'); $('#authModal').setAttribute('aria-hidden', 'true'); $('#authPass').value = ''; authMsg(''); }
+async function submitAuth(e){
+  e.preventDefault();
+  if (!sb){ authMsg('La conexión con la nube no está disponible ahora mismo.', true); return; }
+  const email = $('#authEmail').value.trim(), password = $('#authPass').value;
+  if (!/^\S+@\S+\.\S+$/.test(email)){ authMsg('Escribe un email válido.', true); return; }
+  if (password.length < 6){ authMsg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+  $('#authSubmit').disabled = true; authMsg(authMode === 'login' ? 'Entrando…' : 'Creando tu cuenta…');
+  try {
+    if (authMode === 'login'){
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      closeAccount(); toast('Sesión iniciada · sincronizando tu biblioteca');
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+      if (error) throw error;
+      if (data.session){ closeAccount(); toast('Cuenta creada · tu biblioteca ya se sincroniza'); }
+      else { setAuthMode('login'); authMsg('Te hemos enviado un email para confirmar la cuenta. Después, inicia sesión aquí.'); }
+    }
+  } catch(err){ authMsg(authError(err), true); }
+  finally { $('#authSubmit').disabled = false; $('#authPass').value = ''; }
+}
+async function logout(wipe){
+  if (!sb) return;
+  if (navigator.onLine) await syncNow();             // sube lo pendiente antes de salir
+  stopRealtime();
+  await sb.auth.signOut().catch(() => {});
+  session = null; syncInfo.state = ''; syncInfo.last = 0;
+  if (wipe){                                          // dispositivo compartido: se borra solo la copia local
+    books = []; initMemo(); tombs = {}; saveTombs();
+    try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(SYNC_KEY); } catch(e){}
+    closeStage(); renderShelves();
+  }
+  updateAccountUI(); closeAccount();
+  toast(wipe ? 'Sesión cerrada · tus libros siguen en la nube, no en este dispositivo' : 'Sesión cerrada · sigues en modo invitado en este dispositivo', 4200);
 }
 
 /* =========================================================
@@ -1894,12 +2308,16 @@ $('#scrim').onclick = closePanel;
 $('#resetBtn').onclick = () => {
   if (!confirm('¿Volver a la biblioteca de ejemplo? Se perderán los cambios guardados en este navegador.')) return;
   books = withStatus(clone(DEFAULT_BOOKS)); try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
-  setDirty(false); renderShelves(); toast('Biblioteca restablecida');
+  initMemo(); tombs = {}; saveTombs();               // solo en este dispositivo: no borra nada de la nube
+  setDirty(false); renderShelves(); toast(session ? 'Biblioteca restablecida en este dispositivo · tu copia en la nube sigue intacta' : 'Biblioteca restablecida', 4200);
+  if (session) syncNow();
 };
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (scanOpen()) closeScanner();
+  if (!$('#backupMenu').hidden){ toggleMenu(false); $('#backupBtn').focus(); }
+  else if (scanOpen()) closeScanner();
   else if ($('#cardModal').classList.contains('show')) closeCard();
+  else if ($('#authModal').classList.contains('show')) closeAccount();
   else if ($('#passportModal').classList.contains('show')) closePassport();
   else if ($('#importModal').classList.contains('show')) closeImport();
   else if ($('#modal').classList.contains('show')) closeForm();
@@ -1910,6 +2328,40 @@ let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTime
 
 $('#saveFileBtn').onclick = saveToFile;
 $('#mysteryBtn').onclick = mysteryBook;
+
+/* Barra de acciones: añadir, búsqueda y menú de copias */
+$('#toolAdd').onclick = () => openForm();
+function toggleSearch(open = $('#searchBar').hidden){
+  $('#searchBar').hidden = !open; $('#searchBtn').setAttribute('aria-expanded', open);
+  if (open) $('#searchInput').focus();
+  else if (searchQuery){ searchQuery = ''; $('#searchInput').value = ''; renderShelves(); }
+}
+$('#searchBtn').onclick = () => toggleSearch();
+$('#searchClose').onclick = () => { toggleSearch(false); $('#searchBtn').focus(); };
+$('#searchInput').addEventListener('input', e => { searchQuery = e.target.value; renderShelves(); });
+function toggleMenu(open = $('#backupMenu').hidden){
+  $('#backupMenu').hidden = !open; $('#backupBtn').setAttribute('aria-expanded', open);
+  if (open) $('#backupMenu button').focus();
+}
+$('#backupBtn').onclick = e => { e.stopPropagation(); toggleMenu(); };
+$('#backupMenu').addEventListener('click', e => { if (e.target.closest('button')) toggleMenu(false); });
+$('#backupMenu').addEventListener('keydown', e => {          // flechas para moverse por el menú
+  if (!/^Arrow(Up|Down)$/.test(e.key)) return;
+  e.preventDefault();
+  const items = [...$('#backupMenu').querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+});
+document.addEventListener('click', e => { if (!$('#backupMenu').hidden && !e.target.closest('.tool-menu')) toggleMenu(false); });
+$('#accountBtn').onclick = openAccount;
+$('#authClose').onclick = closeAccount;
+$('#authModal').addEventListener('click', e => { if (e.target.id === 'authModal') closeAccount(); });
+document.querySelectorAll('.auth-tabs button').forEach(b => b.addEventListener('click', () => setAuthMode(b.dataset.mode)));
+$('#authForm').addEventListener('submit', submitAuth);
+$('#syncNowBtn').onclick = syncNow;
+$('#logoutBtn').onclick = () => logout(false);
+$('#logoutWipeBtn').onclick = () => logout(true);
+window.addEventListener('online', () => syncNow());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
 $('#passportBtn').onclick = openPassport;
 $('#passportClose').onclick = closePassport;
 $('#passportModal').addEventListener('click', e => {
@@ -1954,6 +2406,7 @@ renderShelves();
 if (new URLSearchParams(location.search).get('accion') === 'nuevo') openForm();   // atajo «Añadir libro» de la app instalada
 setTimeout(backgroundScans, 1500);                // premios y países de libros aún no analizados
 window.addEventListener('online', backgroundScans);
+initCloud();                                         // cuenta y sincronización (si Supabase está configurado)
 try { setDirty(localStorage.getItem(DIRTY_KEY) === '1'); localStorage.setItem(STORAGE_KEY + '-test', '1'); localStorage.removeItem(STORAGE_KEY + '-test'); }
 catch(e){ storageOK = false; toast('Este navegador no guarda datos locales: usa «Guardar en archivo» tras añadir libros', 5000); }
 </script></body></html>

@@ -4,7 +4,7 @@
    los iconos: así el navegador descarga la nueva versión y
    borra las cachés antiguas.
    ========================================================= */
-const VERSION = 'v9';
+const VERSION = 'v11';
 const SHELL_CACHE  = `biblioteca-shell-${VERSION}`;
 const FONT_CACHE   = 'biblioteca-fuentes';
 const COVER_CACHE  = 'biblioteca-portadas';
@@ -21,8 +21,11 @@ const SHELL = [
   './icons/apple-touch-icon.png'
 ];
 
-/* APIs de búsqueda de portadas: siempre en red, nunca en caché */
-const NETWORK_ONLY = /^https:\/\/(www\.googleapis\.com\/books|openlibrary\.org\/search|query\.wikidata\.org)/;
+/* APIs: siempre en red, nunca en caché.
+   Supabase (cuenta, datos y tiempo real) tampoco se guarda: la caché no distingue entre
+   usuarios ni sesiones, y una respuesta guardada podría mostrar la biblioteca de otra
+   cuenta o datos caducados. El modo sin conexión lo da localStorage (offline-first). */
+const NETWORK_ONLY = /^https:\/\/(www\.googleapis\.com\/books|openlibrary\.org\/search|query\.wikidata\.org|[a-z0-9-]+\.supabase\.co)/;
 
 /* ---------- Instalación: precarga la app ---------- */
 self.addEventListener('install', event => {
@@ -69,8 +72,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Librería del escáner (html5-qrcode, solo en navegadores sin lector propio): disponible también sin conexión
-  if (url.hostname === 'cdnjs.cloudflare.com'){
+  // Librerías (html5-qrcode en cdnjs, supabase-js en jsDelivr): al instante desde caché y
+  // actualizadas en segundo plano, para que la app y la sesión arranquen también sin conexión
+  if (url.hostname === 'cdnjs.cloudflare.com' || url.hostname === 'cdn.jsdelivr.net'){
     event.respondWith(staleWhileRevalidate(req, 'biblioteca-librerias'));
     return;
   }
