@@ -45,6 +45,14 @@ drop trigger if exists libros_touch on public.libros;
 create trigger libros_touch before update on public.libros
   for each row execute function public.libros_touch();
 
+-- Mantener activo: el plan gratuito pausa el proyecto tras 7 días sin uso.
+-- .github/workflows/keepalive.yml llama a esta función cada 3 días. No lee ni devuelve libros.
+create or replace function public.keepalive() returns timestamptz
+language sql stable set search_path = '' as $$ select now() $$;
+
+revoke all on function public.keepalive() from public;
+grant execute on function public.keepalive() to anon, authenticated;
+
 -- Tiempo real: los cambios llegan al instante a los demás dispositivos abiertos
 do $$
 begin

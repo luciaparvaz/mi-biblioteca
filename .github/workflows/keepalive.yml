@@ -1,0 +1,34 @@
+# Mantiene activo el proyecto gratuito de Supabase (se pausa tras 7 días sin uso)
+# con una consulta mínima cada 3 días. Gratis: GitHub Actions en un repositorio público.
+name: Mantener activo Supabase
+
+on:
+  schedule:
+    - cron: "17 6 */3 * *"   # cada 3 días a las 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # para reactivar este workflow (ver el último paso)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar Supabase
+        env:
+          # La misma URL y clave pública que usa index.html (no es secreta: la protege RLS)
+          SUPABASE_URL: https://sppsaizegtyrdzlhmrrq.supabase.co
+          SUPABASE_KEY: sb_publishable_-r22tJElQvKGIXeoxkxwOw_eXec602j
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 10 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/keepalive" \
+            -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}'
+          echo
+
+      # GitHub desactiva los workflows programados tras 60 días sin actividad en el repositorio;
+      # reactivarlo desde aquí reinicia esa cuenta sin hacer commits
+      - name: Evitar que GitHub desactive este workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keepalive.yml/enable"

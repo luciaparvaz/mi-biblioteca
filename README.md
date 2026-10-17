@@ -73,6 +73,8 @@ Elige al azar uno de los libros **Pendientes** con una animación de barajado so
 3. En *Authentication → URL Configuration*, añade la URL de la app (p. ej. `https://luciaparvaz.github.io/mi-biblioteca/`) como *Site URL* / *Redirect URL*, para que funcione el enlace del email de confirmación.
 4. En *Project Settings → API*, copia la **Project URL** y la clave pública (**publishable**, o la *anon* de «Legacy API keys») en la constante `SUPABASE` de `index.html`.
 
+El plan gratuito pausa el proyecto tras 7 días sin uso. Para evitarlo, el workflow `.github/workflows/keepalive.yml` llama cada 3 días a la función `keepalive()` del esquema (solo devuelve la hora, no lee libros). Si usas tu propio proyecto, cambia en ese archivo la URL y la clave pública.
+
 La clave *anon* es pública por diseño; la protección la dan las políticas RLS del esquema. **Nunca pongas la clave `service_role` en la app.** Mientras `SUPABASE` tenga los valores de ejemplo, el botón Cuenta solo informa de que la sincronización no está configurada.
 
 ### Texto
@@ -124,7 +126,8 @@ Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-w
 ├── supabase/
 │   └── schema.sql             # Tabla «libros», políticas RLS y tiempo real (opcional)
 ├── .github/workflows/
-│   └── static.yml             # Despliegue automático en GitHub Pages desde main
+│   ├── static.yml             # Despliegue automático en GitHub Pages desde main
+│   └── keepalive.yml          # Mantiene activo el proyecto gratuito de Supabase (cada 3 días)
 └── README.md
 ```
 
