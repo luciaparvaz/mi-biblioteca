@@ -15,6 +15,11 @@ create table if not exists public.libros (
   primary key (user_id, id)
 );
 
+-- Acceso desde la app solo para usuarios con sesión (necesario si el proyecto
+-- no expone automáticamente las tablas nuevas); los invitados no tocan la nube
+revoke all on public.libros from anon;
+grant select, insert, update, delete on public.libros to authenticated;
+
 -- Seguridad por filas: cada usuario solo ve y modifica sus propios libros
 alter table public.libros enable row level security;
 
@@ -30,7 +35,7 @@ create policy "libros: borrar los propios"    on public.libros for delete using 
 
 -- updated_at automático en cada cambio
 create or replace function public.libros_touch() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   new.updated_at = now();
   return new;

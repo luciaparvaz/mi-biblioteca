@@ -4,7 +4,7 @@
    los iconos: así el navegador descarga la nueva versión y
    borra las cachés antiguas.
    ========================================================= */
-const VERSION = 'v11';
+const VERSION = 'v12';
 const SHELL_CACHE  = `biblioteca-shell-${VERSION}`;
 const FONT_CACHE   = 'biblioteca-fuentes';
 const COVER_CACHE  = 'biblioteca-portadas';

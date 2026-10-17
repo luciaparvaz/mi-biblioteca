@@ -71,7 +71,7 @@ Elige al azar uno de los libros **Pendientes** con una animación de barajado so
 1. Crea un proyecto en [supabase.com](https://supabase.com).
 2. En *SQL Editor*, ejecuta [`supabase/schema.sql`](supabase/schema.sql). Crea la tabla `libros` con seguridad por filas (cada usuario solo ve sus libros) y la activa para tiempo real.
 3. En *Authentication → URL Configuration*, añade la URL de la app (p. ej. `https://luciaparvaz.github.io/mi-biblioteca/`) como *Site URL* / *Redirect URL*, para que funcione el enlace del email de confirmación.
-4. En *Project Settings → API*, copia la **Project URL** y la clave **anon public** en la constante `SUPABASE` de `index.html`.
+4. En *Project Settings → API*, copia la **Project URL** y la clave pública (**publishable**, o la *anon* de «Legacy API keys») en la constante `SUPABASE` de `index.html`.
 
 La clave *anon* es pública por diseño; la protección la dan las políticas RLS del esquema. **Nunca pongas la clave `service_role` en la app.** Mientras `SUPABASE` tenga los valores de ejemplo, el botón Cuenta solo informa de que la sincronización no está configurada.
 
@@ -107,7 +107,7 @@ python -m http.server 8000
 | Google Books, Open Library, Wikidata | Siempre en red (búsquedas, nunca en caché) |
 | Supabase (cuenta, datos, tiempo real) | Siempre en red: la caché no distingue usuarios ni sesiones; el modo sin conexión lo da `localStorage` |
 
-Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-worker.js` (actualmente `v11`) para que las instalaciones descarguen la nueva versión.
+Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-worker.js` (actualmente `v12`) para que las instalaciones descarguen la nueva versión.
 
 ## Estructura del proyecto
 
@@ -133,7 +133,7 @@ Al cambiar archivos de la app hay que subir la constante `VERSION` de `service-w
 - **HTML, CSS y JavaScript sin frameworks**, en un solo archivo y sin dependencias de compilación.
 - **APIs del navegador:** Service Worker y Cache API, Web App Manifest, `localStorage`, Canvas 2D, File System Access API (`showSaveFilePicker`), Web Share API, `getUserMedia` y `BarcodeDetector`, CSS 3D transforms.
 - **html5-qrcode 2.3.8:** lector de códigos de barras, solo en navegadores sin `BarcodeDetector`.
-- **Supabase (supabase-js 2.45.4):** autenticación por email, base de datos Postgres con RLS y Realtime. Opcional; se carga solo si está configurado.
+- **Supabase (supabase-js 2.117.2):** autenticación por email, base de datos Postgres con RLS y Realtime. Opcional; se carga solo si está configurado.
 - **Fuentes:** Cormorant Garamond e Inter (Google Fonts).
 - **Datos abiertos y gratuitos, sin claves:** Google Books API, Open Library API y Wikidata (SPARQL).
 - **GitHub Actions + GitHub Pages** para el despliegue.
